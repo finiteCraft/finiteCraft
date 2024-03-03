@@ -2,6 +2,9 @@
 
 _Here, have my proxy code [@Pixelz22](https://github.com/Pixelz22)_
 
+**Why thank you, kind sir**  
+-_[@Pixelz22](https://github.com/Pixelz22)_
+
 ## What's this?
 
 This code is meant to be a smart auto-rescheduling multithreaded scraper for Neal Agarwal's Infinite Craft
