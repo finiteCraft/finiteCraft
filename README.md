@@ -21,7 +21,7 @@ Currently, this project only has two folders: `backend` and `legacy`.
 
 Here's some features of my backend:
 
-* Threadsafe scheduling
+* Threadsafe scheduling 
 * MongoDB support
 * No queue.Queue() lol
 * Automatic proxy ranking and scheduling
