@@ -180,7 +180,7 @@ class ImprovedThread(threading.Thread):
             print(f'{type(exc).__name__}: {exc}', file=sys.stderr)  # properly handle the exception
             raise exc
 
-    def join(self, *args, **kwargs):
+    def join(self, *args, **kwargs) -> dict:
         """
         The highlight of the class. Returns the thread result upon ending.
         :param args:
