@@ -31,8 +31,8 @@ GIVEN_ELEMENTS: set[str] = {"Water", "Fire", "Wind", "Earth"}
 
 DB = pymongo.MongoClient("mongodb://127.0.0.1")
 def get_recipes_for(element: str) -> list[tuple[str, str]]:
-    # return [ ( o["craft"][0], o["craft"][1] ) for o in DB["crafts"][element].find_all({"type": "crafted_by"}) ]
-    return RECIPES[element]
+    return [ ( o["craft"][0], o["craft"][1] ) for o in DB["crafts"].get_collection(element).find({"type": "crafted_by"}) ]
+    # return RECIPES[element]
 
 def basic_tree(target_element: str) -> SimpleCraftingTree:
     """
