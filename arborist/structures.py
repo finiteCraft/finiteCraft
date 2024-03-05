@@ -20,6 +20,11 @@ class CraftTreeNode:
             return True
         return False
 
+    def __str__(self):
+        if self.is_expanded():
+            return f"CraftTreeNode[{self.element}: {self.ing1.element} + {self.ing2.element}]"
+        return f"CraftTreeNode[{self.element}]"
+
 
 class SimpleCraftingTree:
 
@@ -49,3 +54,19 @@ class SimpleCraftingTree:
         if element in self.map:
             return self.map[element]
         return None
+
+    def to_dict(self):
+        d = {}
+        for element in self.map:
+            node = self.map[element]
+            if node.is_expanded():
+                d[element] = (node.ing1.element, node.ing2.element)
+            else:
+                d[element] = None
+        return d
+
+    def remove(self, element):
+        return self.map.pop(element)
+
+    def __str__(self):
+        return str(self.to_dict())
