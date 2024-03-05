@@ -88,7 +88,7 @@ def smallest_tree_naive_helper(working_tree: SimpleCraftingTree,
                                leaves: deque[CraftTreeNode],
                                smallest: dict[str, tuple[str, str]]) -> dict[str, tuple[str, str] | None]:
 
-    if len(smallest) and len(leaves) > len(smallest):
+    if len(smallest) and len(working_tree.breadcrumbs()) > len(smallest):
         return smallest  # There's no way this tree is gonna be smaller, prune this branch
 
     if not len(leaves):  # Have we completed a tree?
@@ -133,6 +133,53 @@ def smallest_tree_naive_helper(working_tree: SimpleCraftingTree,
     return smallest
 
 
+def smallest_tree_simplified_helper(working_tree: dict[str: tuple[str, str] | None],
+                                    leaves: deque[str],
+                                    smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+    if len(smallest) and len(working_tree) > len(smallest):
+        leaves.clear()
+        return smallest  # There's no way this tree is gonna be smaller, prune this branch
+
+    if not len(leaves):  # Have we completed a tree?
+        # yes, compare against current smallest
+        if len(smallest) == 0 or compare_trees(working_tree, smallest) < 0:
+            return deepcopy(working_tree)
+        return smallest
+
+    leaf = leaves.popleft()
+
+    # Is the element already a part of the tree?
+    # AKA has it already been crafted?
+    if leaf in working_tree:
+        return smallest_tree_simplified_helper(working_tree, leaves, smallest)
+
+    # Initialize leaf in tree
+    working_tree[leaf] = None
+
+    # Does this element need to be crafted?
+    if leaf in GIVEN_ELEMENTS:
+        # If not, just move on
+        smallest = smallest_tree_simplified_helper(working_tree, leaves, smallest)
+        working_tree.pop(leaf)  # Make sure to remove from the tree at the end
+        return smallest
+
+    # Otherwise, try all recipes for this item
+    for recipe in get_recipes_for(leaf):  # For every recipe...
+        working_tree[leaf] = (recipe[0], recipe[1])  # Load recipe
+        # then queue any new leaves
+        # (duplicates get filtered out above code)
+        leaves.append(recipe[0])
+        leaves.append(recipe[1])
+
+        # Run the helper on the expanded tree.
+        # leaves will automatically clear themselves from the queue
+        smallest = smallest_tree_simplified_helper(working_tree, leaves, smallest)
+
+    # Remove the leaf from tree
+    working_tree.pop(leaf)
+    return smallest
+
+
 def smallest_tree_naive(target_element: str) -> dict[str, tuple[str, str]]:
     working_tree = SimpleCraftingTree(target_element)
     leaves = deque()
@@ -140,13 +187,34 @@ def smallest_tree_naive(target_element: str) -> dict[str, tuple[str, str]]:
     smallest = {}
     return smallest_tree_naive_helper(working_tree, leaves, smallest)
 
+def smallest_tree_simplified(target_element: str) -> dict[str, tuple[str, str]]:
+    """
+    Returns the smallest crafting tree for the given element.
+    Takes into account the available recipes and what items are
+    already made by the user.
+    :param target_element: the items to craft
+    :return: the optimal crafting tree
+    """
+    working_tree = {}
+    leaves = deque()
+    leaves.append(target_element)
+    smallest = {}
+    return smallest_tree_simplified_helper(working_tree, leaves, smallest)
+
 
 if __name__ == "__main__":
     start = time.time_ns()
-    print(smallest_tree_naive("Lava"))
+    time.sleep(0.5)
+    print(smallest_tree_naive("Volcano"))
     print(f"Smallest(Naive) took {time.time_ns() - start} ns")
 
     start = time.time_ns()
+    time.sleep(0.5)
+    print(smallest_tree_simplified("Volcano"))
+    print(f"Smallest(Simplified) took {time.time_ns() - start} ns")
+
+    start = time.time_ns()
+    time.sleep(0.5)
     print(basic_tree("Lava"))
     print(f"Basic took {time.time_ns() - start} ns")
 
