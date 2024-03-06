@@ -19,9 +19,19 @@ def ping(ip):
         print(f'{type(exc).__name__}: {exc}', file=sys.stderr)  # properly handle the exception
         return False, datetime.timedelta(seconds=0)
     return True, resp.elapsed
-print("Getting proxies...")
-raw_proxies = get_proxies()
 
+
+method = input("Which method? (default=spys, proxyscrape, url)")
+print("Getting proxies...")
+if method == "proxyscrape":
+    raw_proxies = get_proxyscrape_proxies()
+elif method == "url":
+    raw_proxies = get_url_proxies(
+        "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt")
+else:
+    raw_proxies = get_spys_one_proxies()
+
+print(f"Retrieved {len(raw_proxies)} proxies")
 
 o_value = []
 proxies: list[Proxy] = []
@@ -53,7 +63,6 @@ while True:
     to_calculate = random.sample(combin, int(num))
 
     s = Scheduler(to_calculate, proxies, name="Julian")
-
     s.run()
 
     o = parse_crafts_into_tree(s.output_crafts)

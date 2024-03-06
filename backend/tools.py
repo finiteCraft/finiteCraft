@@ -193,7 +193,7 @@ class ImprovedThread(threading.Thread):
         return self.result
 
 
-def get_proxies() -> list:
+def get_spys_one_proxies() -> list:
     """
     This function is really complex. Here's how it works:
 
@@ -262,6 +262,31 @@ def get_proxies() -> list:
     return proxies
 
 
+def get_proxyscrape_proxies() -> list:
+    """
+    ProxyScrape makes it ez at least
+    :)
+    I could use the data for rankings
+    :return:
+    """
+    proxies = requests.get("https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&protocol=socks5&timeout=15000&proxy_format=ipport&format=json")
+    pxs = json.loads(proxies.text)
+    raw_proxies = []
+    for item in pxs["proxies"]:
+        raw_proxies.append({'ip': item['ip'], 'port': str(item['port']), 'protocol': 'socks5h'})
+    return raw_proxies
+
+
+def get_url_proxies(url) -> list:
+    proxies = requests.get(url)
+    pxs = proxies.text.split("\n")
+    raw_proxies = []
+    for item in pxs:
+        item = item.replace("socks5://", "")
+
+        if ":" in item:
+            raw_proxies.append({'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""), 'protocol': 'socks5h'})
+    return raw_proxies
 def parse_crafts_into_tree(raw_crafts) -> dict:
     """
     Parse raw crafts into a craft tree.

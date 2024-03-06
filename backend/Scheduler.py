@@ -103,8 +103,14 @@ class Scheduler:
                     w.kill = True
                     w.finish_working()
                 break
-
-            time.sleep(1)  # Reduced CPU usage by 78% on my computer
+            try:
+                time.sleep(1)  # Reduced CPU usage by 78% on my computer
+            except KeyboardInterrupt:
+                self.logger.info("Caught KeyboardInterrupt! Shutting down...")
+                for w in self.workers:
+                    w.kill = True
+                    w.finish_working()
+                    break
         self.logger.info(f"Completed {self.initial_craft_size} crafts in {round(time.time()-start_time, 2)}s "
                          f"(completed={completed}, skipped={skipped})")
         if not self.kill:
