@@ -1,3 +1,4 @@
+import datetime
 import ipaddress
 import json
 import random
@@ -11,6 +12,7 @@ import pymongo
 import requests
 import urllib3.exceptions
 from bs4 import BeautifulSoup
+from requests.exceptions import InvalidSchema
 
 ua = fake_useragent.UserAgent()
 
@@ -281,6 +283,18 @@ def parse_crafts_into_tree(raw_crafts) -> dict:
     return out
 
 
+def get_depth_of(element, db):
+    if element in ["Wind", "Fire", "Earth", "Water"]:
+        return 0
+    else:
+        craft_result_collection = db["crafts"].get_collection(element)
+
+        info_doc = craft_result_collection.find_one({"type": "info"})
+        if info_doc is None:
+            return 1
+        return info_doc["depth"]
+
+
 def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.MongoClient) -> None:
     """
     Add a raw craft to the database.
@@ -308,15 +322,25 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
 
     if craft_result_collection.find_one(new_document_crafted_by) is None:
         craft_result_collection.insert_one(new_document_crafted_by)
-    if craft_result_collection.find_one({"type": "info"}) is None:
-        new_document_data = {"type": "info",
-                             "emoji": raw_craft[1]["emoji"],
-                             "discovered": raw_craft[1]["discovered"]}
-        if craft_result_collection.find_one(new_document_data) is None:
+    info_doc = craft_result_collection.find_one({"type": "info"})
+    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:
+        depth = 0
+    else:
+        depth = max(get_depth_of(raw_craft[0][0], db), get_depth_of(raw_craft[0][1], db)) + 1
+    new_document_data = {"type": "info",
+                         "emoji": raw_craft[1]["emoji"],
+                         "discovered": raw_craft[1]["discovered"],
+                         "depth": depth}
+    if info_doc is None:
+        craft_result_collection.insert_one(new_document_data)
+    else:
+        if info_doc["depth"] > new_document_data["depth"]:
+            craft_result_collection.delete_one(info_doc)
             craft_result_collection.insert_one(new_document_data)
 
 
-def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient, return_craft_data=False):
+def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient,
+                          return_craft_data=False):
     """
     Check if the craft exists in the database. Return the craft's output and emoji if return_craft_data is set
     :param craft_data: The raw craft. Just the two ingredients
@@ -328,7 +352,7 @@ def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pym
         return False  # no database, doesn't exist
 
     craft_db = db["crafts"].get_collection(craft_data[0]).find_one({"type": "crafts", "with": craft_data[1]})
-    if not return_craft_data or craft_db is None:   # If we don't need to send the craft or we can't, return
+    if not return_craft_data or craft_db is None:  # If we don't need to send the craft or we can't, return
         return craft_db is not None
     else:  # We are sending the craft data
         this_item_crafts = craft_db["craft"]
@@ -342,3 +366,39 @@ def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pym
 
         return {"result": this_item_crafts, "emoji": emoji, "discovered": is_discovered}  # Return the packaged craft
 
+
+def ping(ip):
+    """
+    Ping a proxy IP
+    :param ip: the proxy to ping
+    :return: Whether the proxy responded
+    """
+    prox = {"https": ip}
+    try:
+        resp = requests.get("https://neal.fun", proxies=prox, timeout=(10, 5), verify=False)
+    except InvalidSchema:  # pysocks not installed
+        print("ERROR: SOCKS support is not installed!")
+        return False, datetime.timedelta(seconds=0)
+    except:  # I know this is bad, but we have to catch ANYTHING
+        return False, datetime.timedelta(seconds=0)
+    return True, resp.elapsed
+
+
+def perform_initial_proxy_ranking(proxies):
+    """
+    Take a list of Proxies and ping each one
+    :param proxies: the Proxies to ping
+    :return: the Proxies (you don't need to use it tho)
+    """
+    ping_threads = []
+    for i, px in enumerate(proxies):
+        rvt = ImprovedThread(target=ping, args=[px.parsed])  # Start the pinging
+        rvt.name = i
+        rvt.start()
+        ping_threads.append(rvt)
+
+    for pt in ping_threads:  # Join the ping threads
+        pt.join()
+        # submit results
+        proxies[int(pt.name)].submit(pt.result[0], pt.result[1].total_seconds(), pt.result[0], pt.result[0])
+    return proxies

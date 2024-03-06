@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
 MAXIMUM_REQUESTS_PER_SECOND = 5  # The maximum requests per second. Higher values will cause proxies to be ratelimited.
 NEW_PROXY_SLEEP = 10  # The amount of time for the proxy function to sleep after failing to find a new proxy
-
+EMPTY_SLEEP = 1
 
 class Worker:
     """
@@ -97,24 +97,29 @@ class Worker:
         batch_number = 1  # The current batch number
 
         # Main loop
-        while len(self.all_crafts) > 0:
+        while not self.kill:
             batch_start = time.time()
-            if self.kill:  # Check for killswitch
-                return
 
             batch_crafts = []
             try:
                 for _ in range(self.batch_size):
                     batch_crafts.append(self.all_crafts.popleft())
             except IndexError:
-                self.logger.info("Craft deque is now empty! continuing from here")
+                if len(batch_crafts) == 0:
+                    self.logger.debug(f"Craft deque is empty! Waiting {EMPTY_SLEEP} seconds...")
+                    time.sleep(EMPTY_SLEEP)
+                    continue
+                else:
+                    self.logger.debug(f"Grabbed remaining {len(batch_crafts)} "
+                                     f"crafts from craft deque. Going to compute now...")
 
             if not len(batch_crafts):  # It was empty from the start
                 return
 
-            self.logger.info(f"Now executing batch {batch_number} "
+            self.logger.debug(f"Now executing batch {batch_number} "
                              f"(Current execution time: {round(time.time() - s, 2)}s)")
             batch_threads = []
+            batch_indices = []
             for index, current_craft in enumerate(batch_crafts):
                 self.logger.debug(f"Job {index + 1} of batch {batch_number} is starting with craft {current_craft}...")
 
@@ -123,31 +128,37 @@ class Worker:
                 check = check_craft_exists_db(current_craft, self.db, return_craft_data=True)
                 if check is not False:
                     self.logger.debug(f"Skipping job {index + 1} of batch {batch_number}"
-
-                                      f" because data is already present in database.")
+                                      f" because data is already present in database. (craft={current_craft})")
                     self.skipped += 1
                     self.crafts.append([current_craft, check])
                     continue
 
-                # Start the craft worker
+                self.logger.debug(f"I actually need to compute job {index+1} of batch {batch_number} "
+                                  f"because there isn't any data. (craft={current_craft})")
 
+                # Start the craft worker
+                batch_indices.append(index)
                 t = ImprovedThread(target=craft,
                                    args=[current_craft[0], current_craft[1], self.proxy, 10, self.session],
                                    name=f"{self.id}-Job{index + 1}")
                 t.start()
                 batch_threads.append(t)
 
+            self.logger.debug(f"Finished spawning threads for batch {batch_number}. "
+                              f"There are {len(batch_threads)} threads started.")
+
             need_new_proxy = False
             failed_crafts = []  # The crafts that didn't work
             for index, thread in enumerate(batch_threads):
                 if self.kill:
-                    return  # Check for killswitch
+                    return  # Check for kill switch
                 result: dict = thread.join()
                 self.logger.debug(f"Job {index + 1} of batch {batch_number} returned value: {result}")
                 if result["status"] == "success":
+                    self.completed += 1
                     self.crafts.append([batch_crafts[index], result])  # Save the craft
                     if self.db is not None:  # If DB is enabled
-                        add_raw_craft_to_db([batch_crafts[index], result], self.db)  # Save to DB
+                        add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
                     self.proxy.submit(True, result["time_elapsed"])
                 # Submit metrics to the Proxy object
                 elif result["type"] == "read":
@@ -164,7 +175,7 @@ class Worker:
                     need_new_proxy = True  # We have to find a new proxy 
 
             # Check for failed crafts
-            if need_new_proxy:  # One (or more) crafts failed, and we have a new proxy
+            if need_new_proxy:  # One (or more) crafts failed, and we have to find a new proxy
                 self.logger.warning(f"{len(failed_crafts)}/{len(batch_crafts)} of batch"
                                     f" {batch_number} failed. (Current proxy: {str(self.proxy)})"
                                     f" Attempting to locate new proxy.")

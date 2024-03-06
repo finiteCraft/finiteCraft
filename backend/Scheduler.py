@@ -24,7 +24,7 @@ class Scheduler:
         self.crafts = collections.deque(maxlen=len(crafts))
         for item in crafts:
             self.crafts.append(item)
-
+        self.initial_craft_size = len(crafts)
         self.workers = []
         self.craft_list = crafts
         self.max_workers = 5
@@ -47,12 +47,12 @@ class Scheduler:
         self.output_crafts = []
         self.workers = []
         self.all_workers = []
-        # Prepare the Workers
+        # Prepare the Tyler-Workers
         total_amount_of_crafts = len(self.craft_list)
         rank = rank_proxies(self.proxies)
         for id in range(self.max_workers):
             new_worker = Worker(self.proxies, self.crafts, rank[id], f"Tyler-{id}",
-                                return_craft_reference=self.output_crafts, db=self.db)
+                                return_craft_reference=self.output_crafts, db=self.db, log_level=self.logger.level)
             self.workers.append(new_worker)
             self.all_workers.append(new_worker)
 
@@ -60,30 +60,21 @@ class Scheduler:
         # Start the Workers
         for w in self.workers:
             w.begin_working()
-        base_completed = 0
-        base_skipped = 0
+
         # current_added_index = 0
         # Main loop
-        while len(self.workers):
+        completed = 0
+        skipped = 0
+        while not self.kill:
             # Calculate how many total jobs have been completed by the workers (for progress bar)
-            completed = base_completed
-            skipped = base_skipped
+            completed = 0
+            skipped = 0
             remove_these = []
-            currently_alive = 0
             for w in self.workers:
                 completed += w.completed
                 skipped += w.skipped
-                if not w.is_working():  # Worker is done, mark for removal
-                    remove_these.append(w)
-                    continue
-                currently_alive += 1
 
-            for w in remove_these:
-                base_completed += w.completed  # Update the base_completed
-                base_skipped += w.skipped  # ditto
-                # (so we don't have to lug around the whole object)
-                self.workers.remove(w)  # Actually remove the worker
-                del w  # BURN THEM
+
 
             # Calculate completed percentage and ETA
             complete_percentage = 100 * (completed + skipped) / total_amount_of_crafts
@@ -100,13 +91,28 @@ class Scheduler:
             self.logger.info(f"Current overall progress: "
                              f"{completed+skipped}/{total_amount_of_crafts} ({round(complete_percentage, 2)}%,"
                              f" ETA: {remaining_time}s), Workers alive: {len(self.workers)}")
+            # Update internal progress
             self.progress = {"status": "running", "jobs_completed": self._generate_self_running(),
                              "completed": completed, "skipped": skipped, "total_amount": total_amount_of_crafts,
                              "percentage_done": complete_percentage, "workers_alive": len(self.workers),
                              "eta": remaining_time}
-            time.sleep(1)  # Reduced CPU usage by 78% on my computer
 
-        self.progress["status"] = "finished"  # We're done!
+            if completed + skipped == self.initial_craft_size:  # All crafts are done!
+                self.logger.info("All crafts are now complete! Sending kill to workers...")
+                for w in self.workers:
+                    w.kill = True
+                    w.finish_working()
+                break
+
+            time.sleep(1)  # Reduced CPU usage by 78% on my computer
+        self.logger.info(f"Completed {self.initial_craft_size} crafts in {round(time.time()-start_time, 2)}s "
+                         f"(completed={completed}, skipped={skipped})")
+        if not self.kill:
+            self.progress["status"] = "finished"  # We're done!
+            del self.progress["eta"]
+            del self.progress["workers_alive"]
+        else:  # We were killed for some reason
+            self.progress["status"] = "killed"
 
     def _generate_self_running(self) -> dict:
         """
@@ -115,6 +121,6 @@ class Scheduler:
         """
         jobs_division = {}
         for w in self.all_workers:
-            jobs_division[w.id] = w.completed
+            jobs_division[w.id] = {"completed": w.completed, "skipped": w.skipped}
 
         return jobs_division

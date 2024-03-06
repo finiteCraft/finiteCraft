@@ -1,3 +1,5 @@
+from requests.exceptions import InvalidSchema
+
 from backend.Scheduler import Scheduler
 from backend.tools import *
 from backend.Proxy import Proxy
@@ -10,15 +12,19 @@ def ping(ip):
     prox = {"https": ip}
     try:
         resp = requests.get("https://neal.fun", proxies=prox, timeout=(10, 5), verify=False)
-    except Exception:
+    except InvalidSchema:
+        print("SOCKS support is not installed!")
+        return False, datetime.timedelta(seconds=0)
+    except Exception as exc:
+        print(f'{type(exc).__name__}: {exc}', file=sys.stderr)  # properly handle the exception
         return False, datetime.timedelta(seconds=0)
     return True, resp.elapsed
-
-pick_from = ["Fire", "Water", "Earth", "Wind"]
+print("Getting proxies...")
 raw_proxies = get_proxies()
+
+
 o_value = []
 proxies: list[Proxy] = []
-ping_threads = []
 
 do_ping = True
 
@@ -26,24 +32,27 @@ do_ping = True
 for i, p in enumerate(raw_proxies):
     px = Proxy(ip=p['ip'], port=p['port'], protocol=p['protocol'])
     proxies.append(px)
-    if do_ping:
-        rvt = ImprovedThread(target=ping, args=[px.parsed])
-        rvt.name = i
-        rvt.start()
-        ping_threads.append(rvt)
-
-for pt in ping_threads:
-    pt.join()
-    print(pt.result, pt.name, proxies[int(pt.name)])
-    proxies[int(pt.name)].submit(pt.result[0], pt.result[1].total_seconds(), pt.result[0], pt.result[0])
-
-t = time.time()
+print("Ranking proxies...")
+perform_initial_proxy_ranking(proxies)
 
 
-for _ in range(4):
-    to_calculate = list(itertools.combinations_with_replacement(pick_from, 2))
+def get_db_elements():
+    db = pymongo.MongoClient("mongodb://127.0.0.1")
+    cols = list(db["crafts"].list_collection_names())
+    return cols
 
-    s = Scheduler(to_calculate, proxies)
+
+while True:
+    t = time.time()
+    pick_from = get_db_elements()
+    if len(pick_from) == 0:
+        pick_from = ["Fire", "Water", "Wind", "Earth"]
+    combin = list(itertools.combinations_with_replacement(pick_from, 2))
+    num = input(f"How many crafts? (max={len(combin)}) ")
+
+    to_calculate = random.sample(combin, int(num))
+
+    s = Scheduler(to_calculate, proxies, name="Julian")
 
     s.run()
 
