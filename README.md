@@ -2,6 +2,8 @@
 
 _Here, have my proxy code [@Pixelz22](https://github.com/Pixelz22)_
 
+-_[@quantumbagel](https://github.com/quantumbagel)_
+  
 **Why thank you, kind sir**  
 -_[@Pixelz22](https://github.com/Pixelz22)_
 
