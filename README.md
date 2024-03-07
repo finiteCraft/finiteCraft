@@ -51,10 +51,9 @@ He has, without a doubt, hard-carried this project.
     - [x] Keep track of which proxies are successful and which aren't
     - [x] automatically cycles through proxies that are unreliable
     - [x] reschedules proxies that have been temp-blocked by neal.fun to be used later
-  - [ ] Multi-threaded Workers searching for crafting recipes
+  - [x] Multi-threaded Workers searching for crafting recipes
     - [x] Probes InfiniteCraft through sessioned GET requests
     - [x] Sends packets of multiple requests at once to make up for slow proxies
-    - [ ] Order of recipes searched stays the same when, even if threads finish out of order
   - [ ] Storage of elements and recipe info
     - [ ] Stores element info in a map from numerical key to element info.  
       Should store element's
