@@ -68,10 +68,10 @@ He has, without a doubt, hard-carried this project.
   - [ ] Exports data to GitHub repository
     - Use of subprocess commands to interact with Git
     - [ ] Chunking
-  - [ ] API for accessing information from the repo
-    - [ ] Interfaces with chunking
-    - [ ] User can get element info
-    - [ ] User can get recipe info
+  - [x] API for accessing information from the repo
+    - [x] Interfaces with chunking
+    - [x] User can get element info
+    - [x] User can get recipe info
 
 
 - [ ] Arborist
