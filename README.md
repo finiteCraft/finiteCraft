@@ -1,7 +1,6 @@
 # finiteCraft
 
 _Here, have my proxy code [@Pixelz22](https://github.com/Pixelz22)_
-
 &mdash; _[@quantumbagel](https://github.com/quantumbagel)_
   
 **Why thank you, kind sir**  
