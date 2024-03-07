@@ -204,17 +204,17 @@ def smallest_tree_simplified(target_element: str) -> dict[str, tuple[str, str]]:
 
 if __name__ == "__main__":
     start = time.time_ns()
-    time.sleep(0.5)
+    #time.sleep(0.5)
     print(smallest_tree_naive("Volcano"))
     print(f"Smallest(Naive) took {time.time_ns() - start} ns")
 
     start = time.time_ns()
-    time.sleep(0.5)
+    #time.sleep(0.5)
     print(smallest_tree_simplified("Volcano"))
     print(f"Smallest(Simplified) took {time.time_ns() - start} ns")
 
     start = time.time_ns()
-    time.sleep(0.5)
-    print(basic_tree("Lava"))
+    #time.sleep(0.5)
+    print(basic_tree("Volcano"))
     print(f"Basic took {time.time_ns() - start} ns")
 

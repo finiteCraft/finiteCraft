@@ -20,7 +20,6 @@ def ping(ip):
         return False, datetime.timedelta(seconds=0)
     return True, resp.elapsed
 
-
 method = input("Which method? (default=spys, proxyscrape, url)")
 print("Getting proxies...")
 if method == "proxyscrape":
