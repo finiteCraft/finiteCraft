@@ -1,5 +1,6 @@
 js2py
 requests
+pysocks
 fake-useragent
 beautifulsoup4
 ndg-httpsclient
