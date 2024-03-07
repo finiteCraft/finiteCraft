@@ -1,7 +1,7 @@
 import pymongo
 import itertools
 
-from backend.Scheduler import Scheduler
+from autocrafter.Scheduler import Scheduler
 
 
 def get_db_elements():

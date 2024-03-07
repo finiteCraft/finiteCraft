@@ -1,8 +1,8 @@
 from requests.exceptions import InvalidSchema
 
-from backend.Scheduler import Scheduler
-from backend.tools import *
-from backend.Proxy import Proxy
+from autocrafter.Scheduler import Scheduler
+from autocrafter.tools import *
+from autocrafter.Proxy import Proxy
 import itertools
 import time
 import datetime

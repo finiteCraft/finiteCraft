@@ -2,8 +2,8 @@ import collections
 import logging
 import warnings
 
-from backend.Proxy import Proxy
-from backend.tools import *
+from autocrafter.Proxy import Proxy
+from autocrafter.tools import *
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
