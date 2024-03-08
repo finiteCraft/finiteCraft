@@ -7,3 +7,4 @@ ndg-httpsclient
 pyopenssl
 pyasn1
 pymongo
+gitpython
