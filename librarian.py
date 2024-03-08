@@ -5,7 +5,8 @@ import requests
 from git import Repo
 
 session = requests.sessions.Session()
-repo = Repo("../api/.git")
+LOCAL_DB_PATH = "../api"
+repo = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 ALL_DATA_URL = "https://finitecraft.github.io/api/all_data.json"
 
@@ -41,7 +42,7 @@ def update_remote():
 
 def save_cache():
     """Saves the data currently stored in the cache"""
-    path = f"../api/{cached_data_type}"
+    path = f"{LOCAL_DB_PATH}/{cached_data_type}"
     os.makedirs(path, exist_ok=True)
     json.dump(cache, open(f"{path}/{cached_chunk_hash}.json", "w"))
 
