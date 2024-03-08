@@ -36,7 +36,7 @@ def update_remote():
     """Pushes the library data to the online database"""
     log.debug("Updating local git...")
     repo.index.reset()
-    repo.index.add("--all")
+    repo.index.add("**")
     log.debug("Committing changes...")
     repo.index.commit("Updated data")
     log.debug("Pushing changes...")
@@ -158,4 +158,6 @@ def store_data(key: str, data: dict, data_type="element", local=False) -> bool:
 
 
 if __name__ == "__main__":
-    print(query_data("Thundercougarfalconbird"))
+    store_data("Test3", {"lol":"ol"}, local=True)
+    save_cache()
+    update_remote()
