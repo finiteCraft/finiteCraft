@@ -9,6 +9,7 @@ repo = Repo("../api/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 ALL_DATA_URL = "https://finitecraft.github.io/api/all_data.json"
 
+
 cached_chunk_hash: int = -1
 cached_data_type = ""
 cache: dict[str, dict] = {}
@@ -28,16 +29,20 @@ def chunk_hash(key: str) -> int:
     return code // chunk_size
 
 
+def update_remote():
+    """Pushes the library data to the online database"""
+    repo.index.reset()
+    repo.index.add(".")
+    repo.index.commit("Updated data")
+    origin = repo.remote(name='origin')
+    origin.push()
+
+
 def save_cache():
     """Saves the data currently stored in the cache"""
     path = f"../api/{cached_data_type}"
     os.makedirs(path, exist_ok=True)
     json.dump(cache, open(f"{path}/{cached_chunk_hash}.json", "w"))
-    repo.index.reset()
-    repo.index.add([f"{cached_data_type}/{cached_chunk_hash}.json"])
-    repo.index.commit("Updated data")
-    origin = repo.remote(name='origin')
-    origin.push()
 
 
 def load_chunk(ch: int, data_type="elements", create_new=False) -> None:
