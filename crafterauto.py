@@ -1,15 +1,13 @@
 import json
 import subprocess
 import time
-
+import librarian
 import pymongo
 import itertools
 from autocrafter.Proxy import Proxy
 from autocrafter.Scheduler import Scheduler
 from autocrafter.tools import parse_crafts_into_tree, perform_initial_proxy_ranking, get_url_proxies, ImprovedThread
-import git
-from git import Repo
-repo = Repo("../infinite-crafts/.git")
+
 db = pymongo.MongoClient("mongodb://127.0.0.1")
 
 
@@ -61,7 +59,6 @@ while True:
             raw_database = {}
             for col in db.get_database("crafts").list_collection_names():
                 raw_database.update({col: list(db["crafts"][col].find({}, {"_id": 0}))})
-            database = {}
             for element in raw_database:
                 data = raw_database[element]
                 info = {}
@@ -72,32 +69,11 @@ while True:
                     elif document["type"] == "info":
                         del document["type"]
                         info = document
-                database.update({element: {"info": info, "crafted_by": crafted_by}})
-            print("database loaded")
-            json.dump(database, open("../infinite-crafts/all_data.json", "w"))
-
-            print("resetting...")
-            repo.index.reset()
-            print("adding...")
-            repo.index.add(["all_data.json"])
-            print("committing")
-            repo.index.commit("Updated data")
-            print("lloading")
-            origin = repo.remote(name='origin')
-            print("pushing")
-            origin.push()
-            print('done')
-
-
-
-
-            # subprocess.run(["git", "commit", "-m", '"updated crafts"'], shell=True)
-            # subprocess.run(["git", "push"], shell=True)
-
-
-
-
-
+                librarian.store_data(element, {"discovered": info["discovered"], "emoji": info["emoji"],
+                                               "depth": info["depth"]}, "display")
+                librarian.store_data(element, {"crafted_by": crafted_by, "depth": info["depth"]}, "search")
+            librarian.save_cache()
+            librarian.update_remote()
 
     o = parse_crafts_into_tree(s.output_crafts)
 

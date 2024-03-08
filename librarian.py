@@ -1,6 +1,6 @@
 import json
 import os
-
+import logging
 import requests
 from git import Repo
 
@@ -14,7 +14,8 @@ cached_chunk_hash: int = -1
 cached_data_type = ""
 cache: dict[str, dict] = {}
 chunk_updated = False
-
+log = logging.getLogger("Librarian")
+log.setLevel(logging.DEBUG)
 chunk_size = 100
 
 
@@ -33,18 +34,23 @@ def chunk_hash(key: str) -> int:
 
 def update_remote():
     """Pushes the library data to the online database"""
+    log.debug("Updating local git...")
     repo.index.reset()
-    repo.index.add(".")
+    repo.index.add("--all")
+    log.debug("Committing changes...")
     repo.index.commit("Updated data")
+    log.debug("Pushing changes...")
     origin = repo.remote(name='origin')
     origin.push()
 
 
 def save_cache():
     """Saves the data currently stored in the cache"""
+    log.debug("Saving cache.")
     path = f"{LOCAL_DB_PATH}/{cached_data_type}"
     os.makedirs(path, exist_ok=True)
     json.dump(cache, open(f"{path}/{cached_chunk_hash}.json", "w"))
+    log.debug(f"File {path}/{cached_chunk_hash}.json dumped.")
 
 
 def load_chunk(ch: int, data_type="elements", create_new=False) -> None:
@@ -62,13 +68,15 @@ def load_chunk(ch: int, data_type="elements", create_new=False) -> None:
 
     if chunk_updated:
         save_cache()
-
+    log.debug(f"Retrieving chunk {ch} (data type={data_type})...")
     response = session.get(f"{DB_URL}/{data_type}/{ch}.json")
     if response.status_code == 404:
         if not create_new:
             raise IndexError(f"Attempted to access non-existent chunk: {data_type}/{ch}.json")
+        log.debug(f"Chunk {ch} (data type={data_type}) does not exist!")
         cache = {}
     else:
+        log.debug(f"Chunk {ch} (data type={data_type}) succesfully downloaded!")
         cache = json.loads(response.content)
     cached_chunk_hash = ch
     cached_data_type = data_type
@@ -103,6 +111,7 @@ def query_data(key: str, data_type="element") -> dict:
     """
     ch = chunk_hash(key)
     if ch != cached_chunk_hash and cached_chunk_hash != -2:
+        log.debug(f"Loading chunk {ch} (data type={data_type})...")
         load_chunk(ch, data_type)
 
     return cache[key]
@@ -125,8 +134,10 @@ def store_data(key: str, data: dict, data_type="element") -> bool:
     chunk_updated = True
     if key in cache:
         cache[key] = data
+        log.debug(f"Saved element {key} to chunk hash {ch} successfully. Data saved: {data} (key in cache)")
         return True
 
+    log.debug(f"Saved element {key} to chunk hash {ch} successfully. Data saved: {data} (key not in cache)")
     cache[key] = data
     return False
 
