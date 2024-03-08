@@ -1,7 +1,7 @@
 import logging
 import time
 
-# from backend.Worker import Worker
+# from autocrafter.Worker import Worker
 from autocrafter.exceptions import *
 from autocrafter.tools import *
 

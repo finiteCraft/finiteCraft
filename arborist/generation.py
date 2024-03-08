@@ -1,10 +1,11 @@
-import math
 import time
-
-from structures import *
 from collections import deque
 from copy import deepcopy
+
 import pymongo
+
+import autocrafter.tools as tools
+from structures import *
 
 # This is a placeholder for now.
 # Real recipes should be loaded from database
@@ -30,9 +31,13 @@ RECIPES: dict[str, list[tuple[str, str]]] = {
 GIVEN_ELEMENTS: set[str] = {"Water", "Fire", "Wind", "Earth"}
 
 DB = pymongo.MongoClient("mongodb://127.0.0.1")
+
+
 def get_recipes_for(element: str) -> list[tuple[str, str]]:
-    return [ ( o["craft"][0], o["craft"][1] ) for o in DB["crafts"].get_collection(element).find({"type": "crafted_by"}) ]
+    return [(o["craft"][0], o["craft"][1]) for o in
+            DB["crafts"].get_collection(tools.encode_element_name(element)).find({"type": "crafted_by"})]
     # return RECIPES[element]
+
 
 def basic_tree(target_element: str) -> SimpleCraftingTree:
     """
@@ -87,7 +92,6 @@ def compare_trees(tree1: dict[str, tuple[str, str] | None], tree2: dict[str, tup
 def smallest_tree_naive_helper(working_tree: SimpleCraftingTree,
                                leaves: deque[CraftTreeNode],
                                smallest: dict[str, tuple[str, str]]) -> dict[str, tuple[str, str] | None]:
-
     if len(smallest) and len(working_tree.breadcrumbs()) > len(smallest):
         return smallest  # There's no way this tree is gonna be smaller, prune this branch
 
@@ -187,6 +191,7 @@ def smallest_tree_naive(target_element: str) -> dict[str, tuple[str, str]]:
     smallest = {}
     return smallest_tree_naive_helper(working_tree, leaves, smallest)
 
+
 def smallest_tree_simplified(target_element: str) -> dict[str, tuple[str, str]]:
     """
     Returns the smallest crafting tree for the given element.
@@ -204,17 +209,16 @@ def smallest_tree_simplified(target_element: str) -> dict[str, tuple[str, str]]:
 
 if __name__ == "__main__":
     start = time.time_ns()
-    #time.sleep(0.5)
+    # time.sleep(0.5)
     print(smallest_tree_naive("Volcano"))
     print(f"Smallest(Naive) took {time.time_ns() - start} ns")
 
     start = time.time_ns()
-    #time.sleep(0.5)
+    # time.sleep(0.5)
     print(smallest_tree_simplified("Volcano"))
     print(f"Smallest(Simplified) took {time.time_ns() - start} ns")
 
     start = time.time_ns()
-    #time.sleep(0.5)
+    # time.sleep(0.5)
     print(basic_tree("Volcano"))
     print(f"Basic took {time.time_ns() - start} ns")
-

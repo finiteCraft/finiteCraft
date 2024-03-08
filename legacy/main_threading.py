@@ -1,14 +1,16 @@
 import itertools
 import json
+import logging
 import random
+import threading
 import time
 import warnings
-import threading
+
 import js2py
 import requests
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
-import logging
+
 ua = UserAgent()
 proxies = []  # Will contain proxies
 spare_crafts = []
@@ -57,10 +59,10 @@ def craft(one, two, proxy=None, timeout=5, session=None):
     try:
         if session is None:
             response = requests.get('https://neal.fun/api/infinite-craft/pair', params=params, headers=headers,
-                                proxies=proxy_argument, verify=False, timeout=(timeout, timeout*2))
+                                    proxies=proxy_argument, verify=False, timeout=(timeout, timeout * 2))
         else:
             response = session.get('https://neal.fun/api/infinite-craft/pair', params=params, headers=headers,
-                                    proxies=proxy_argument, verify=False, timeout=(timeout, timeout*2))
+                                   proxies=proxy_argument, verify=False, timeout=(timeout, timeout * 2))
     except requests.exceptions.ConnectTimeout:
         return 300  # Failure
     except requests.exceptions.ConnectionError:
@@ -130,11 +132,12 @@ def worker(crafts, identification, proxy_id=None):
 
     proxies[current_proxy]['used'] += 1  # Latch on to chosen proxy
     for current_craft, c in enumerate(crafts):
-        #print(rank_proxies())
+        # print(rank_proxies())
         log.info(f"Now crafting {c}, Craft Progress: {requests_total}/{total_amount_of_requests},"
                  f" Worker Progress: {current_craft}/{len(crafts)}")
         start = time.time()
-        out = craft(c[0], c[1], proxies[current_proxy]['parsed'], session=proxies[current_proxy]['session'])  # Attempt to craft
+        out = craft(c[0], c[1], proxies[current_proxy]['parsed'],
+                    session=proxies[current_proxy]['session'])  # Attempt to craft
         end = time.time()
 
         if type(out) is not dict:  # Craft failed, penalty is returned
@@ -211,10 +214,7 @@ def worker(crafts, identification, proxy_id=None):
         if time.time() - start < 0.2:
             time.sleep(0.2 - (end - start))
 
-
-
     save()  # When we get out of the loop, save data. TODO: MongoDB support
-
 
     # Check if there's any spare crafts left for us by other workers
 
@@ -252,7 +252,8 @@ def schedule(workers, word_set):
     combin = itertools.combinations_with_replacement(word_set, 2)
     crafts_to_perform = []
     for m, c in enumerate(combin):
-        if [c[0], c[1]] not in existing_recipes or [c[1], c[0]] not in existing_recipes and not (c[0] == "Nothing") and not (c[1] == "Nothing"):
+        if [c[0], c[1]] not in existing_recipes or [c[1], c[0]] not in existing_recipes and not (
+                c[0] == "Nothing") and not (c[1] == "Nothing"):
             crafts_to_perform.append([c[0], c[1]])
 
     total_amount_of_requests = m
@@ -262,14 +263,14 @@ def schedule(workers, word_set):
     start = 0
     print(f"done")
     print("Spawning workers...", end='')
-    for worker_index in range(-1, workers-1):
+    for worker_index in range(-1, workers - 1):
         if worker_index == -1:
             proxy_to_use_index = -1
         else:
             proxy_to_use_index = proxies.index(proxies_to_assign[worker_index])
         if (worker_index + 1) <= remaining_extra:
             ft = threading.Thread(target=worker, args=[crafts_to_perform[start:start + things_per + 1], worker_index,
-                           proxy_to_use_index])
+                                                       proxy_to_use_index])
             start += things_per + 1
             ft.start()
             threads.append(ft)
@@ -389,7 +390,8 @@ def update_proxies():
             {"ip": address.get_text(), "port": port, "parsed": f"socks5h://{address.get_text()}:{port}", "status": -1,
              "total_calls": 0, "average_response": 0, "used": 0, 'max_workers': 3, "session": requests.Session()})
     proxies.append({"ip": "", "port": "", "parsed": None, "status": -1,
-                    "total_calls": 0, "average_response": 0, "used": 0, 'max_workers': 1, "session": requests.Session()})  # The "local" worker
+                    "total_calls": 0, "average_response": 0, "used": 0, 'max_workers': 1,
+                    "session": requests.Session()})  # The "local" worker
     return proxies
 
 
@@ -404,5 +406,5 @@ if __name__ == "__main__":
     print(proxies)
     print(f"done ({len(proxies)} proxies including local)")
     inp = dict(random.sample(list(base_depth.items()), 50))
-    #inp = base_depth
+    # inp = base_depth
     schedule(30, inp)

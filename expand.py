@@ -1,8 +1,8 @@
 import itertools
 import pprint
 
-import pymongo
-from backend.tools import *
+from autocrafter.tools import *
+
 
 class CraftTree:
     def __init__(self, db_address):
@@ -38,12 +38,7 @@ class CraftTree:
                 break
             depth += 1
 
-
-
         pprint.pprint(self.missing_crafts_by_depth)
-
-
-
 
 
 c = CraftTree("mongodb://127.0.0.1:27017")

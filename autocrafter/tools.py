@@ -287,6 +287,8 @@ def get_url_proxies(url) -> list:
         if ":" in item:
             raw_proxies.append({'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""), 'protocol': 'socks5h'})
     return raw_proxies
+
+
 def parse_crafts_into_tree(raw_crafts) -> dict:
     """
     Parse raw crafts into a craft tree.
@@ -312,7 +314,7 @@ def get_depth_of(element, db):
     if element in ["Wind", "Fire", "Earth", "Water"]:
         return 0
     else:
-        craft_result_collection = db["crafts"].get_collection(element)
+        craft_result_collection = db["crafts"].get_collection(encode_element_name(element))
 
         info_doc = craft_result_collection.find_one({"type": "info"})
         if info_doc is None:
@@ -333,9 +335,9 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
                              "recursive": is_recursive}
     new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][1],
                              "recursive": is_recursive}
-    craft_item_two_collection = db["crafts"].get_collection(raw_craft[0][1])
-    craft_item_one_collection = db["crafts"].get_collection(raw_craft[0][0])
-    craft_result_collection = db["crafts"].get_collection(raw_craft[1]["result"])
+    craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][1]))
+    craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0]))
+    craft_result_collection = db["crafts"].get_collection(encode_element_name(raw_craft[1]["result"]))
     if new_document_crafts_1["with"] == new_document_crafts_2["with"]:  # double recipe (Water + Water)
         if craft_item_two_collection.find_one(new_document_crafts_1) is None:
             craft_item_two_collection.insert_one(new_document_crafts_1)
@@ -426,3 +428,15 @@ def perform_initial_proxy_ranking(proxies):
         # submit results
         proxies[int(pt.name)].submit(pt.result[0], pt.result[1].total_seconds(), pt.result[0], pt.result[0])
     return proxies
+
+
+def encode_element_name(element):
+    full_period = "\uff0e"
+    full_dollar_sign = "\uff04"
+    return element.replace(".", full_period).replace("$", full_dollar_sign)
+
+
+def decode_element_name(element):
+    full_period = "\uff0e"
+    full_dollar_sign = "\uff04"
+    return element.replace(full_period, ".").replace(full_dollar_sign, '$')

@@ -1,14 +1,13 @@
 import json
-import requests
-from git import Repo
 import os
 
+import requests
+from git import Repo
 
 session = requests.sessions.Session()
 repo = Repo("../api/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 ALL_DATA_URL = "https://finitecraft.github.io/api/all_data.json"
-
 
 cached_chunk_hash: int = -1
 cached_data_type = ""
@@ -16,6 +15,8 @@ cache: dict[str, dict] = {}
 chunk_updated = False
 
 chunk_size = 100
+
+
 def chunk_hash(key: str) -> int:
     """
     Generate the chunk hash for the given key using a combination
@@ -104,6 +105,7 @@ def query_data(key: str, data_type="element") -> dict:
         load_chunk(ch, data_type)
 
     return cache[key]
+
 
 def store_data(key: str, data: dict, data_type="element") -> bool:
     """

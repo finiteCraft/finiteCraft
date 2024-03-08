@@ -4,9 +4,9 @@ import time
 
 import pymongo
 import itertools
-from backend.Proxy import Proxy
-from backend.Scheduler import Scheduler
-from backend.tools import parse_crafts_into_tree, perform_initial_proxy_ranking, get_url_proxies, ImprovedThread
+from autocrafter.Proxy import Proxy
+from autocrafter.Scheduler import Scheduler
+from autocrafter.tools import parse_crafts_into_tree, perform_initial_proxy_ranking, get_url_proxies, ImprovedThread
 import git
 from git import Repo
 repo = Repo("../infinite-crafts/.git")
@@ -75,6 +75,7 @@ while True:
                 database.update({element: {"info": info, "crafted_by": crafted_by}})
             print("database loaded")
             json.dump(database, open("../infinite-crafts/all_data.json", "w"))
+
             print("resetting...")
             repo.index.reset()
             print("adding...")
