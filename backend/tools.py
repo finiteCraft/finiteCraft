@@ -375,7 +375,6 @@ def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pym
     """
     if db is None:
         return False  # no database, doesn't exist
-
     craft_db = db["crafts"].get_collection(craft_data[0]).find_one({"type": "crafts", "with": craft_data[1]})
     if not return_craft_data or craft_db is None:  # If we don't need to send the craft or we can't, return
         return craft_db is not None
