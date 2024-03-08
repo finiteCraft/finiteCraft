@@ -2,7 +2,7 @@ import itertools
 import pprint
 
 import pymongo
-from backend.tools import *
+from autocrafter.tools import *
 
 class CraftTree:
     def __init__(self, db_address):

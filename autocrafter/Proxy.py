@@ -1,9 +1,9 @@
 import logging
 import time
 
-# from backend.Worker import Worker
-from backend.exceptions import *
-from backend.tools import *
+# from autocrafter.Worker import Worker
+from autocrafter.exceptions import *
+from autocrafter.tools import *
 
 # Protocols
 SOCKS5 = "socks5h"

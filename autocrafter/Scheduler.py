@@ -1,9 +1,9 @@
 import collections
 import logging
 import pymongo
-from backend.Proxy import Proxy
-from backend.Worker import Worker
-from backend.tools import *
+from autocrafter.Proxy import Proxy
+from autocrafter.Worker import Worker
+from autocrafter.tools import *
 
 
 class Scheduler:
