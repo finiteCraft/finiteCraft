@@ -42,6 +42,12 @@ current_depth = 1
 
 while True:
     pick_from = get_db_elements()
+    if len(pick_from) == 0:
+        pick_from = ["Fire", "Water", "Wind", "Earth"]
+        emojis = ["🔥", "💧", "🌬️", "🌍"]
+        for i, item in enumerate(pick_from):
+            col = db.get_database("crafts").get_collection(item)
+            col.insert_one({"type": "info", "depth": 0, "emoji": emojis[i], "discovered": False})
     combin = list(itertools.combinations_with_replacement(pick_from, 2))
 
     s = Scheduler(combin, proxies, name="Julian")
@@ -69,9 +75,10 @@ while True:
                     elif document["type"] == "info":
                         del document["type"]
                         info = document
+                print(element)
                 librarian.store_data(element, {"discovered": info["discovered"], "emoji": info["emoji"],
-                                               "depth": info["depth"]}, "display")
-                librarian.store_data(element, {"crafted_by": crafted_by, "depth": info["depth"]}, "search")
+                                               "depth": info["depth"]}, "display", local=True)
+                librarian.store_data(element, {"crafted_by": crafted_by, "depth": info["depth"]}, "search", local=True)
             librarian.save_cache()
             librarian.update_remote()
 
