@@ -60,9 +60,12 @@ while True:
     while s_thread.is_alive():
         time.sleep(1)
         slept += 1
+
         if slept % 30 == 0:
             print("committing committicide")
+            librarian.remove_directories()
             raw_database = {}
+
             for col in db.get_database("crafts").list_collection_names():
                 raw_database.update({col: list(db["crafts"][col].find({}, {"_id": 0}))})
             for element in raw_database:
@@ -75,7 +78,6 @@ while True:
                     elif document["type"] == "info":
                         del document["type"]
                         info = document
-                print(element)
                 librarian.store_data(element, {"discovered": info["discovered"], "emoji": info["emoji"],
                                                "depth": info["depth"]}, "display", local=True)
                 librarian.store_data(element, {"crafted_by": crafted_by, "depth": info["depth"]}, "search", local=True)

@@ -3,12 +3,13 @@ import os
 import logging
 import requests
 from git import Repo
-
+import shutil
 session = requests.sessions.Session()
 LOCAL_DB_PATH = "../api"
 repo = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 ALL_DATA_URL = "https://finitecraft.github.io/api/all_data.json"
+DATA_TYPES = ["display", "search"]
 
 cached_chunk_hash: int = -1
 cached_data_type = ""
@@ -17,6 +18,16 @@ chunk_updated = False
 log = logging.getLogger("Librarian")
 log.setLevel(logging.DEBUG)
 chunk_size = 100
+
+
+def remove_directories():
+    """
+    Remove the directory (used to reset git)
+    :return:
+    """
+    for dir_name in DATA_TYPES:
+        if os.path.exists(LOCAL_DB_PATH+"/"+dir_name):
+            shutil.rmtree(LOCAL_DB_PATH+"/"+dir_name)
 
 
 def chunk_hash(key: str) -> int:
@@ -34,7 +45,7 @@ def chunk_hash(key: str) -> int:
 
 def update_remote():
     """Pushes the library data to the online database"""
-    log.debug("Updating local git...")
+    log.info("Beginning push process...")
     repo.index.reset()
     repo.index.add("**")
     log.debug("Committing changes...")
@@ -42,6 +53,7 @@ def update_remote():
     log.debug("Pushing changes...")
     origin = repo.remote(name='origin')
     origin.push()
+    log.info("Push attempt done.")
 
 
 def save_cache():
@@ -143,14 +155,14 @@ def store_data(key: str, data: dict, data_type="element", local=False) -> bool:
     global chunk_updated
 
     ch = chunk_hash(key)
-    if ch != cached_chunk_hash and cached_chunk_hash != -2:
+    if ch != cached_chunk_hash and cached_chunk_hash != -2 and cached_data_type != data_type:
         load_chunk(ch, data_type, create_new=True, local=local)
 
     chunk_updated = True
-    newKey = key not in cache
+    new_key = key not in cache
     cache[key] = data
     log.debug(f"Saved element {key} to chunk hash {ch} successfully. Data saved: {data} (key in cache)")
-    return newKey
+    return new_key
 
 
 # Name of element -> run some hashing function on it -> compression function ->
@@ -158,6 +170,6 @@ def store_data(key: str, data: dict, data_type="element", local=False) -> bool:
 
 
 if __name__ == "__main__":
-    store_data("Test3", {"lol":"ol"}, local=True)
+    store_data("Test3", {"lol": "ol"}, local=True)
     save_cache()
     update_remote()
