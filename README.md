@@ -43,7 +43,7 @@ He has, without a doubt, hard-carried this project.
 
 ## TODO LIST:
 
-- [ ] Autocrafter
+- [x] Autocrafter
   - [x] Proxy Scraper
     - [x] Searches multiple proxy sources
   - [x] Proxy management
@@ -53,8 +53,8 @@ He has, without a doubt, hard-carried this project.
   - [x] Multi-threaded Workers searching for crafting recipes
     - [x] Probes InfiniteCraft through sessioned GET requests
     - [x] Sends packets of multiple requests at once to make up for slow proxies
-  - [ ] Storage of elements and recipe info
-    - [ ] Stores element info in a map from numerical key to element info.  
+  - [x] Storage of elements and recipe info
+    - [x] Stores element info in a map from numerical key to element info.  
       Should store element's
       - Name
       - Emoji
@@ -62,12 +62,12 @@ He has, without a doubt, hard-carried this project.
       - Whether it was discovered by the bot or not
       - list of recipes that this element is used in, formatted with the
         other ingredient and result.
-    - [ ] Store recipes in map
+    - [x] Store recipes in map
       - Maps from element key to a list of all recipes that make that element,
         each stored as a tuple of the two ingredient keys
-  - [ ] Exports data to GitHub repository
+  - [x] Exports data to GitHub repository
     - Use of subprocess commands to interact with Git
-    - [ ] Chunking
+    - [x] Chunking
   - [x] API for accessing information from the repo
     - [x] Interfaces with chunking
     - [x] User can get element info
