@@ -8,7 +8,7 @@ from autocrafter.tools import *
 
 class Scheduler:
     def __init__(self, crafts: list[list[str, str] | tuple[str, str]], proxies: list[Proxy],
-                 mongo_connection_string: str = None, name: str = "Default",
+                 mongo_connection_string: str = None, name: str = "Julian",
                  log_level: str = logging.INFO) -> None:
         """
         Initialize a Scheduler.
@@ -49,6 +49,8 @@ class Scheduler:
         self.all_workers = []
         # Prepare the Tyler-Workers
         total_amount_of_crafts = len(self.craft_list)
+        if total_amount_of_crafts == 0:
+            return
         rank = rank_proxies(self.proxies)
         for id in range(self.max_workers):
             new_worker = Worker(self.proxies, self.crafts, rank[id], f"Tyler-{id}",
@@ -90,7 +92,7 @@ class Scheduler:
             # Log the information
             self.logger.info(f"Current overall progress: "
                              f"{completed+skipped}/{total_amount_of_crafts} ({round(complete_percentage, 2)}%,"
-                             f" ETA: {remaining_time}s), Workers alive: {len(self.workers)}")
+                             f" ETA: {remaining_time}s)")
             # Update internal progress
             self.progress = {"status": "running", "jobs_completed": self._generate_self_running(),
                              "completed": completed, "skipped": skipped, "total_amount": total_amount_of_crafts,
