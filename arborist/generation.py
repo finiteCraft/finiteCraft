@@ -211,6 +211,8 @@ def smallest_tree_simplified(target_element: str) -> dict[str, tuple[str, str]]:
 
 
 if __name__ == "__main__":
+    librarian.init()
+
     start = time.time_ns()
     # time.sleep(0.5)
     print(smallest_tree_simplified("Stone"))
