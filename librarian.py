@@ -19,7 +19,7 @@ chunk_updated = False
 log = logging.getLogger("Librarian")
 log.setLevel(logging.INFO)
 num_chunks = 64
-CHUNK_CAPACITY = 100
+CHUNK_CAPACITY = 1000
 
 
 def init():
@@ -145,6 +145,7 @@ def ensure_capacity(check_all=False):
         if len(cache) > CHUNK_CAPACITY:
             log.debug("Max capacity reached in cache. Rehashing...")
             rehash(num_chunks * 2)
+            ensure_capacity(check_all)
             return True
         return False
 
@@ -160,6 +161,7 @@ def ensure_capacity(check_all=False):
             log.debug(f"Max capacity reached in file {f}. Rehashing...")
             fp.close()
             rehash(num_chunks * 2)
+            ensure_capacity(check_all)
             return True
         fp.close()
     return False
@@ -249,7 +251,6 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> N
     else:  # Searching in remote database
         response = SESSION.get(f"{DB_URL}/{rel_path}")
         if response.status_code != 404:
-            log.debug(f"Chunk {ch} (data type={data_type}) successfully downloaded!")
             cache = json.loads(response.content)
         elif create_new:
             log.debug(f"Chunk {ch} (data type={data_type}) does not exist! Creating new chunk...")
@@ -260,6 +261,7 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> N
     cached_chunk_hash = ch
     cached_data_type = data_type
     chunk_updated = False
+    log.debug(f"Chunk {ch} (data type={data_type}) successfully loaded!")
 
 
 def load_all_data() -> None:
@@ -330,5 +332,5 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
     update_local()
     init()
-    rehash(128)
+    ensure_capacity(True)
     update_remote()
