@@ -215,10 +215,10 @@ if __name__ == "__main__":
 
     start = time.time_ns()
     # time.sleep(0.5)
-    print(smallest_tree_simplified("Stone"))
-    print(f"Smallest(Simplified) took {time.time_ns() - start} ns")
+    print(basic_tree("Stone"))
+    print(f"Basic took {time.time_ns() - start} ns")
 
     start = time.time_ns()
     # time.sleep(0.5)
-    print(basic_tree("Stone"))
-    print(f"Basic took {time.time_ns() - start} ns")
+    print(smallest_tree_simplified("Stone"))
+    print(f"Smallest(Simplified) took {time.time_ns() - start} ns")

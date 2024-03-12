@@ -25,6 +25,8 @@ CHUNK_CAPACITY = 100
 def init():
     global num_chunks
 
+    update_local()
+
     if os.path.exists(f"{LOCAL_DB_PATH}/settings.json"):
         with open(f"{LOCAL_DB_PATH}/settings.json", "r") as sp:
             settings = json.load(sp)
@@ -46,11 +48,14 @@ def remove_directories():
             shutil.rmtree(LOCAL_DB_PATH + "/" + dir_name)
 
 
-def chunk_hash(key: str, nc=num_chunks) -> int:
+def chunk_hash(key: str, nc: int | None = None) -> int:
     """
     Generate the chunk hash for the given key using a combination
     of polynomial hash codes and modulo compression
     """
+    if nc is None:
+        nc = num_chunks
+
     prime = 7
     code = 0
     for c in key:
@@ -323,5 +328,7 @@ def store_data(key: str, data: dict, data_type="display", local=False) -> bool:
 if __name__ == "__main__":
     logging.basicConfig()
     log.setLevel(logging.DEBUG)
-    init()
     update_local()
+    init()
+    rehash(128)
+    update_remote()
