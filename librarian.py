@@ -17,7 +17,7 @@ cached_data_type = ""
 cache: dict[str, dict] = {}
 chunk_updated = False
 log = logging.getLogger("Librarian")
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 num_chunks = 64
 CHUNK_CAPACITY = 100
 
