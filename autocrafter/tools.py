@@ -289,6 +289,15 @@ def get_url_proxies(url) -> list:
     return raw_proxies
 
 
+def get_many_url_proxies(prox_links):
+    raw = []
+    for prox_link in prox_links:
+        for p in get_url_proxies(prox_link):
+            if p not in raw:
+                raw.append(p)
+    return raw
+
+
 def parse_crafts_into_tree(raw_crafts) -> dict:
     """
     Parse raw crafts into a craft tree.
@@ -310,16 +319,41 @@ def parse_crafts_into_tree(raw_crafts) -> dict:
     return out
 
 
+depth_item_cache = {}
+max_depth_cache_size = 10 ** 8  # cache size
+
+
 def get_depth_of(element, db):
+    if len(depth_item_cache.keys()):
+        oldest = list(depth_item_cache.keys())[0]
+    else:
+        oldest = None
     if element in ["Wind", "Fire", "Earth", "Water"]:
         return 0
+    elif element in depth_item_cache.keys():
+        depth = depth_item_cache[element]
+        if oldest is not None:
+            depth_item_cache.pop(oldest)
+        depth_item_cache.update({element: depth})
+        return depth
     else:
         craft_result_collection = db["crafts"].get_collection(encode_element_name(element))
 
         info_doc = craft_result_collection.find_one({"type": "info"})
         if info_doc is None:
             return 1
+        if len(depth_item_cache) == max_depth_cache_size:
+            if oldest is not None:
+                depth_item_cache.pop(oldest)
+            depth_item_cache.update({element: info_doc["depth"]})
+        else:
+            depth_item_cache[element] = info_doc["depth"]
         return info_doc["depth"]
+
+
+def invalidate_element(element):
+    if element in depth_item_cache.keys():
+        del depth_item_cache[element]
 
 
 def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.MongoClient) -> None:
