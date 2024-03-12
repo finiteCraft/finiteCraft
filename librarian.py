@@ -6,7 +6,7 @@ from git import Repo
 import shutil
 
 SESSION = requests.sessions.Session()
-LOCAL_DB_PATH = "../api"
+LOCAL_DB_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/../api"
 REPO = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 ALL_DATA_URL = "https://finitecraft.github.io/api/all_data.json"
@@ -263,7 +263,7 @@ def load_all_data() -> None:
     cached_chunk_hash = -2
 
 
-def query_data(key: str, data_type="display", local=False) -> dict:
+def query_data(key: str, data_type="display", local=False) -> dict | None:
     """
     Fetches the data associated with the given key and data type.
     :param key: the key to search for
@@ -272,11 +272,13 @@ def query_data(key: str, data_type="display", local=False) -> dict:
     :return: the data stored with the key
     """
     ch = chunk_hash(key)
-    if ch != cached_chunk_hash and cached_chunk_hash != -2:
+    if (ch != cached_chunk_hash or cached_data_type != data_type) and cached_chunk_hash != -2:
         log.debug(f"Loading chunk {ch} (data type={data_type})...")
         load_chunk(ch, data_type, local=local)
 
-    return cache[key]
+    if key in cache:
+        return cache[key]
+    return None
 
 
 def store_data(key: str, data: dict, data_type="display", local=False) -> bool:
@@ -291,7 +293,7 @@ def store_data(key: str, data: dict, data_type="display", local=False) -> bool:
     global chunk_updated
 
     ch = chunk_hash(key)
-    if ch != cached_chunk_hash and cached_chunk_hash != -2 and cached_data_type != data_type:
+    if (ch != cached_chunk_hash or cached_data_type != data_type) and cached_chunk_hash != -2:
         load_chunk(ch, data_type, create_new=True, local=local)
 
     chunk_updated = True
