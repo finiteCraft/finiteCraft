@@ -174,6 +174,18 @@ def update_remote():
     REPO.index.add("**")
 
 
+def update_local():
+    """Pulls from the online database to the library"""
+    log.info("Beginning pull process...")
+    log.debug("Pulling changes...")
+    origin = REPO.remote(name='origin')
+    origin.pull()
+    log.info("Pull attempt done.")
+    REPO.index.reset()  # Do a reset here to only track files that still exist
+    REPO.index.add("**")
+
+
+
 def save_cache():
     """Saves the data currently stored in the cache"""
 
@@ -312,5 +324,4 @@ if __name__ == "__main__":
     logging.basicConfig()
     log.setLevel(logging.DEBUG)
     init()
-    rehash(new_num_chunks=128)
-    update_remote()
+    update_local()
