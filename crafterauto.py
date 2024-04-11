@@ -20,6 +20,7 @@ def get_db_elements():
 
 
 librarian.init()
+librarian.update_local()
 o_value = []
 proxies: list[Proxy] = []
 
@@ -117,13 +118,12 @@ while True:
             do_proxy_stuff()
             s.proxies = proxies
             log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
-        if slept % 600 == 0 and push_to_github:
+        if slept % 6 == 0 and push_to_github:
             librarian.remove_directories()
             raw_database = {}
-
             for col in db.get_database("crafts").list_collection_names():
                 raw_database.update({col: list(db["crafts"][col].find({}, {"_id": 0}))})
-            stats = {"unique": len(raw_database), "recipes": 0, "tyler": 1, "julian": 1,
+            stats = {"unique": len(raw_database),
                      "mongodb": db["crafts"].command("dbstats")}
             json.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
             for element in raw_database:
@@ -131,16 +131,19 @@ while True:
                 info = {}
                 crafted_by = []
                 for document in data:
-                    if document["type"] == "crafts":
-                        stats["recipes"] += 1
+                    # Don't need this, could readd later?
+                    # if document["type"] == "crafts":
+                    #     stats["recipes"] += 1
                     if document["type"] == "crafted_by":
-                        crafted_by.append(document["craft"])
+                        crafted_by.append([document["craft"], document["predepth"], document["recursive"]])
                     elif document["type"] == "info":
                         del document["type"]
                         info = document
                 librarian.store_data(element, {"discovered": info["discovered"], "emoji": info["emoji"],
                                                "depth": info["depth"]}, "display", local=True)
-                librarian.store_data(element, {"crafted_by": crafted_by, "depth": info["depth"]}, "search", local=True)
+                pre = [i[0] for i in crafted_by if i[1]]
+                post = [i[1] for i in crafted_by if not i[1]]
+                librarian.store_data(element, {"pre": pre, "post": post, "depth": info["depth"]}, "search", local=True)
             librarian.save_cache()
             librarian.update_remote()
 

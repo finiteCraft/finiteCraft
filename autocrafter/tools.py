@@ -364,14 +364,37 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     :return: None
     """
     is_recursive = raw_craft[0][0] == raw_craft[1]["result"] or raw_craft[0][1] == raw_craft[1]["result"]
-    new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0], "recursive": is_recursive}
-    new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0],
-                             "recursive": is_recursive}
-    new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][1],
-                             "recursive": is_recursive}
     craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][1]))
     craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0]))
     craft_result_collection = db["crafts"].get_collection(encode_element_name(raw_craft[1]["result"]))
+    info_doc = craft_result_collection.find_one({"type": "info"})
+    element_one_depth = get_depth_of(raw_craft[0][0], db)
+    element_two_depth = get_depth_of(raw_craft[0][1], db)
+    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:
+        depth = 0
+    else:
+        depth = max(element_one_depth, element_two_depth) + 1
+    if info_doc:
+        final_element_depth = info_doc["depth"]
+    else:
+        final_element_depth = depth
+    is_predepth = final_element_depth >= element_one_depth and final_element_depth >= element_two_depth
+    new_document_data = {"type": "info",
+                         "emoji": raw_craft[1]["emoji"],
+                         "discovered": raw_craft[1]["discovered"],
+                         "depth": depth}
+    if info_doc is None:
+        craft_result_collection.insert_one(new_document_data)
+    elif info_doc["depth"] > new_document_data["depth"]:
+        craft_result_collection.delete_one(info_doc)
+        craft_result_collection.insert_one(new_document_data)
+    new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0], "recursive": is_recursive,
+                               "predepth": is_predepth}
+    new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0],
+                             "recursive": is_recursive, "predepth": is_predepth}
+    new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][1],
+                             "recursive": is_recursive, "predepth": is_predepth}
+
     if new_document_crafts_1["with"] == new_document_crafts_2["with"]:  # double recipe (Water + Water)
         if craft_item_two_collection.find_one(new_document_crafts_1) is None:
             craft_item_two_collection.insert_one(new_document_crafts_1)
@@ -383,22 +406,6 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
 
     if craft_result_collection.find_one(new_document_crafted_by) is None:
         craft_result_collection.insert_one(new_document_crafted_by)
-    info_doc = craft_result_collection.find_one({"type": "info"})
-    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:
-        depth = 0
-    else:
-        depth = max(get_depth_of(raw_craft[0][0], db), get_depth_of(raw_craft[0][1], db)) + 1
-    new_document_data = {"type": "info",
-                         "emoji": raw_craft[1]["emoji"],
-                         "discovered": raw_craft[1]["discovered"],
-                         "depth": depth}
-    if info_doc is None:
-        craft_result_collection.insert_one(new_document_data)
-    else:
-        if info_doc["depth"] > new_document_data["depth"]:
-            craft_result_collection.delete_one(info_doc)
-            craft_result_collection.insert_one(new_document_data)
-
 
 def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient,
                           return_craft_data=False):
