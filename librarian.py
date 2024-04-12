@@ -32,6 +32,7 @@ num_chunks = 64
 cache: deque[Chunk] = deque()
 
 def cache_pop():
+    """Removes the first chunk from the cache, and saves it if it has been updated."""
     chunk = cache.popleft()
 
     if chunk.updated:
@@ -39,16 +40,18 @@ def cache_pop():
         path = f"{LOCAL_DB_PATH}/{chunk.data_type}"
         os.makedirs(path, exist_ok=True)
         with open(f"{path}/{chunk.hsh}.json", "w") as fp:
-            json.dump(cache, fp)
+            json.dump(chunk.data, fp)
         log.debug(f"File {path}/{chunk.hsh}.json dumped.")
 
 
 def cache_clear():
+    """Clears out the cache, saving any updated chunks."""
     while len(cache):
         cache_pop()
 
 
 def cache_contains(hsh: int, data_type: str) -> bool:
+    """Checks if the cache contains a chunk with the given chunk hash and data type."""
     for chunk in cache:
         if chunk.hsh == hsh and chunk.data_type == data_type:
             return True
@@ -56,6 +59,11 @@ def cache_contains(hsh: int, data_type: str) -> bool:
 
 
 def cache_get(hsh: int, data_type: str) -> Chunk | None:
+    """
+    Returns the first chunk in the cache with the given chunk hash and data type.
+    If no chunk exists, return None.
+    """
+
     for chunk in cache:
         if chunk.hsh == hsh and chunk.data_type == data_type:
             return chunk
@@ -63,6 +71,7 @@ def cache_get(hsh: int, data_type: str) -> Chunk | None:
 
 
 def init():
+    """Initializes the librarian settings and updates the local database."""
     global num_chunks
 
     update_local()
@@ -104,6 +113,7 @@ def chunk_hash(key: str, nc: int | None = None) -> int:
 
 
 def rehash(new_num_chunks):
+    """Rehashes all the data in the database to fit the new number of chunks."""
     global num_chunks
 
     log.info("Beginning Rehash...")
