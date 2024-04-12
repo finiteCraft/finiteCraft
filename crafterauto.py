@@ -142,7 +142,7 @@ while True:
                 librarian.store_data(element, {"discovered": info["discovered"], "emoji": info["emoji"],
                                                "depth": info["depth"]}, "display", local=True)
                 pre = [i[0] for i in crafted_by if i[1]]
-                post = [i[1] for i in crafted_by if not i[1]]
+                post = [i[0] for i in crafted_by if not i[1]]
                 librarian.store_data(element, {"pre": pre, "post": post, "depth": info["depth"]}, "search", local=True)
             librarian.save_cache()
             librarian.update_remote()

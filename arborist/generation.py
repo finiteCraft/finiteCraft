@@ -17,7 +17,17 @@ def get_recipes_for(element: str) -> list[tuple[str, str]]:
     d = librarian.query_data(element, "search")
     if d is None:
         return []
-    return d["crafted_by"]
+    ret: list[tuple[str, str]] = d["pre"]
+    ret.extend(d["post"])
+    return ret
+
+
+def get_pre_recipes_for(element: str) -> list[tuple[str, str]]:
+    # return RECIPES[element]
+    d = librarian.query_data(element, "search")
+    if d is None:
+        return []
+    return d["pre"]
 
 
 def basic_tree(target_element: str) -> SimpleCraftingTree:
@@ -268,7 +278,7 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
     """
     Method DC2 (Depth Cap 2)
     ---
-    Prunes elements whose depth is greater than the target element.
+    Prunes elements whose depth is greater than the element they're being used to craft.
     It may be possible that this doesn't return the optimal tree,
     but we are 99.99% confident that it will. Even if it doesn't,
     it will return a really good tree.
@@ -336,6 +346,78 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
     return smallest
 
 
+def h_smallest_tree_dc3(working_tree: dict[str: tuple[str, str] | None],
+                                  leaves: deque[str],
+                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+    """
+    Method DC3 (Depth Cap 3)
+    ---
+    Only checks pre-depth recipes of elements.
+    Conceptually, this does the same as DC2, but it uses the
+    separation of pre- and post-depth recipes to avoid iterating
+    through unnecessary, even if those recipes were being skipped anyway.
+    It may be possible that this doesn't return the optimal tree,
+    but we are 99.99% confident that it will. Even if it doesn't,
+    it will return a really good tree.
+    """
+    # log.debug(f"Working Tree - {working_tree}")
+    if not len(leaves):  # Have we completed a tree?
+        # yes, compare against current smallest
+        if len(smallest) == 0 or compare_trees(working_tree, smallest) < 0:
+            log.info(f"Found new smallest tree: {working_tree}")
+            return deepcopy(working_tree)
+        return smallest
+
+    leaf = leaves.popleft()
+    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+
+    # PRUNING BLOCK
+    # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
+    if len(smallest) and max(len(working_tree), leaf_depth + 1) > len(smallest):
+        if leaf_depth + 1 > len(smallest) >= len(working_tree):  # Notify when leaf_depth was the cause of pruning
+            log.debug("LD optimization utilized!")
+        log.debug(f"Pruned Branch! Breadcrumb count: {len(working_tree)}")
+        leaves.clear()
+        return smallest  # There's no way this tree is gonna be smaller, prune this branch
+    # END PRUNING BLOCK
+
+    # Is the element already a part of the tree?
+    # AKA has it already been crafted?
+    if leaf in working_tree:
+        return h_smallest_tree_dc3(working_tree, leaves, smallest)
+
+    # Initialize leaf in tree
+    working_tree[leaf] = None
+
+    # Does this element need to be crafted?
+    if leaf in GIVEN_ELEMENTS:
+        # If not, just move on
+        smallest = h_smallest_tree_dc3(working_tree, leaves, smallest)
+        working_tree.pop(leaf)  # Make sure to remove from the tree at the end
+        return smallest
+
+    # Otherwise, try all recipes for this item
+    recipes = get_pre_recipes_for(leaf) # DC3 optimization
+    for i, recipe in enumerate(recipes):  # For every recipe...
+        ing1 = recipe[0]
+        ing2 = recipe[1]
+
+        working_tree[leaf] = (ing1, ing2)  # Load recipe
+        log.debug(f"Using recipe {i + 1}/{len(recipes)} for {leaf} on tree {working_tree}")
+        # then queue any new leaves
+        # (duplicates get filtered out above code)
+        leaves.append(ing1)
+        leaves.append(ing2)
+
+        # Run the helper on the expanded tree.
+        # leaves will automatically clear themselves from the queue
+        smallest = h_smallest_tree_dc3(working_tree, leaves, smallest)
+
+    # Remove the leaf from tree
+    working_tree.pop(leaf)
+    return smallest
+
+
 def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
     """
     Returns the smallest crafting tree for the given element.
@@ -359,6 +441,8 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
 
 if __name__ == "__main__":
     librarian.init()
+
+    print(get_pre_recipes_for("Wave"))
 
     start = time.time_ns()
     # time.sleep(0.5)
