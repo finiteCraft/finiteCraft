@@ -20,7 +20,6 @@ def get_db_elements():
 
 
 librarian.init()
-librarian.update_local()
 o_value = []
 proxies: list[Proxy] = []
 
@@ -144,7 +143,7 @@ while True:
                 pre = [i[0] for i in crafted_by if i[1]]
                 post = [i[0] for i in crafted_by if not i[1]]
                 librarian.store_data(element, {"pre": pre, "post": post, "depth": info["depth"]}, "search", local=True)
-            librarian.save_cache()
+            librarian.cache_clear()
             librarian.update_remote()
 
     current_depth += 1
