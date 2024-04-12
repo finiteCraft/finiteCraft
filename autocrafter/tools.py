@@ -7,7 +7,6 @@ import threading
 import time
 
 import fake_useragent
-import js2py
 import pymongo
 import requests
 import urllib3.exceptions
