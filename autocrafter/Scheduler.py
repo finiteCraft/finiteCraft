@@ -1,6 +1,6 @@
 import collections
 import logging
-import pymongo
+
 from autocrafter.Proxy import Proxy
 from autocrafter.Worker import Worker
 from autocrafter.tools import *
@@ -71,12 +71,9 @@ class Scheduler:
             # Calculate how many total jobs have been completed by the workers (for progress bar)
             completed = 0
             skipped = 0
-            remove_these = []
             for w in self.workers:
                 completed += w.completed
                 skipped += w.skipped
-
-
 
             # Calculate completed percentage and ETA
             complete_percentage = 100 * (completed + skipped) / total_amount_of_crafts
@@ -91,7 +88,7 @@ class Scheduler:
 
             # Log the information
             self.logger.info(f"Current overall progress: "
-                             f"{completed+skipped}/{total_amount_of_crafts} ({round(complete_percentage, 2)}%,"
+                             f"{completed + skipped}/{total_amount_of_crafts} ({round(complete_percentage, 2)}%,"
                              f" ETA: {remaining_time}s)")
             # Update internal progress
             self.progress = {"status": "running", "jobs_completed": self._generate_self_running(),
@@ -113,7 +110,7 @@ class Scheduler:
                     w.kill = True
                     w.finish_working()
                     break
-        self.logger.info(f"Completed {self.initial_craft_size} crafts in {round(time.time()-start_time, 2)}s "
+        self.logger.info(f"Completed {self.initial_craft_size} crafts in {round(time.time() - start_time, 2)}s "
                          f"(completed={completed}, skipped={skipped})")
         if not self.kill:
             self.progress["status"] = "finished"  # We're done!
