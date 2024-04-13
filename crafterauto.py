@@ -91,8 +91,11 @@ while True:
     log.info("task done")
     if len(combin) == 0:
         log.error("ERROR: No combinations were generated. Resetting crafter.breadcrumb...")
-        breadcrumb = [0, 1]
-        current_depth = 0
+        if breadcrumb == [1, 0]:  # bruh idk
+            log.fatal("ERROR: Breadcrumb WAS reset. Broken database?")
+            break
+        breadcrumb = [1, 0]  # Reset breadcrumb and try again.
+        current_depth = 1
         continue
     if first_loop:
         first_loop = False
