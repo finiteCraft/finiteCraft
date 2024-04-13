@@ -11,7 +11,7 @@ from autocrafter.Scheduler import Scheduler
 from autocrafter.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread,
                                get_depth_of)
 
-db = pymongo.MongoClient("mongodb://127.0.0.1")
+db = pymongo.MongoClient("mongodb://192.168.1.143:27017")
 
 
 def get_db_elements():
@@ -90,8 +90,10 @@ while True:
             combin.append(item)
     log.info("task done")
     if len(combin) == 0:
-        log.error("ERROR: No combinations were generated. Please reset crafter.breadcrumb.")
-        break
+        log.error("ERROR: No combinations were generated. Resetting crafter.breadcrumb...")
+        breadcrumb = [0, 1]
+        current_depth = 0
+        continue
     if first_loop:
         first_loop = False
         combin = combin[breadcrumb[1]:]
