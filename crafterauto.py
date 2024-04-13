@@ -11,7 +11,9 @@ from autocrafter.Scheduler import Scheduler
 from autocrafter.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread,
                                get_depth_of)
 
-db = pymongo.MongoClient("mongodb://192.168.1.143:27017")
+
+CONNECTION_STRING = "mongodb://192.168.1.143:27017"
+db = pymongo.MongoClient(CONNECTION_STRING)
 
 
 def get_db_elements():
@@ -103,7 +105,7 @@ while True:
         finished_additive = breadcrumb[1]
     else:
         finished_additive = 0
-    s = Scheduler(combin, proxies, name="Julian")
+    s = Scheduler(combin, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian")
     s_thread = ImprovedThread(target=s.run)
 
     s_thread.start()
@@ -122,7 +124,7 @@ while True:
             do_proxy_stuff()
             s.proxies = proxies
             log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
-        if slept % 6 == 0 and push_to_github:
+        if slept % 600 == 0 and push_to_github:
             librarian.remove_directories()
             raw_database = {}
             for col in db.get_database("crafts").list_collection_names():
