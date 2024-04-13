@@ -206,7 +206,7 @@ def ensure_capacity():
 def update_remote():
     """Pushes the library data to the online database"""
     log.info("Beginning push process...")
-    REPO.git.execute("git add . --all")
+    REPO.git.add(all=True)  # This does work on Linux. Use REPO.git.execute("git add . --all") on Windows
     log.debug("Committing changes...")
     REPO.index.commit("Updated data")
     log.debug("Pushing changes...")
