@@ -72,6 +72,9 @@ He has, without a doubt, hard-carried this project.
     - [x] Interfaces with chunking
     - [x] User can get element info
     - [x] User can get recipe info
+  - [x] Docker container
+  - [ ] Support for not-always-online MongoDB
+  - [ ] optimized generation algorithm
 
 
 - [ ] Arborist
