@@ -1,7 +1,7 @@
 import collections
 import logging
 import warnings
-
+from pymongo.errors import *
 from autocrafter.Proxy import Proxy
 from autocrafter.tools import *
 
@@ -54,6 +54,7 @@ class Worker:
         self.completed = 0  # Keep track of completed jobs
         self.db = db
         self.skipped = 0  # Keep track of skipped jobs
+        self.paused = False
 
     def begin_working(self) -> None:
         """
@@ -98,6 +99,7 @@ class Worker:
 
         # Main loop
         while not self.kill:
+
             batch_start = time.time()
 
             batch_crafts = []
@@ -125,7 +127,13 @@ class Worker:
 
                 # Check if we can be lazy and skip the craft.
                 #  (this function works even if there is no database so don't worry future me)
-                check = check_craft_exists_db(current_craft, self.db, return_craft_data=True)
+                while True:
+                    try:
+                        check = check_craft_exists_db(current_craft, self.db, return_craft_data=True)
+                    except (ServerSelectionTimeoutError, AutoReconnect):
+                        self.logger.error("Failed to check craft existence! Retrying in 1 second...")
+                        continue
+                    break
                 if check is not False:
                     self.logger.debug(f"Skipping job {index + 1} of batch {batch_number}"
                                       f" because data is already present in database. (craft={current_craft})")
@@ -158,7 +166,13 @@ class Worker:
                     self.completed += 1
                     self.crafts.append([batch_crafts[index], result])  # Save the craft
                     if self.db is not None:  # If DB is enabled
-                        add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
+                        while True:
+                            try:
+                                add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
+                            except (ServerSelectionTimeoutError, AutoReconnect):
+                                self.logger.error("Failed to log craft to database! Retrying in 1 second...")
+                                continue
+                            break
                     self.proxy.submit(True, result["time_elapsed"])
                 # Submit metrics to the Proxy object
                 elif result["type"] == "read":

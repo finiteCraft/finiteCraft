@@ -1,10 +1,9 @@
 import itertools
 import json
 import time
-
 import pymongo
 import logging
-
+from pymongo.errors import ConnectionFailure
 import librarian
 from autocrafter.Proxy import Proxy
 from autocrafter.Scheduler import Scheduler
@@ -111,6 +110,21 @@ while True:
     s_thread.start()
     while s_thread.is_alive():
         time.sleep(1)
+        try:
+            # The ismaster command is cheap and does not require auth.
+            db.admin.command('ismaster')
+        except ConnectionFailure:
+            log.error("Disconnected from MongoDB! Waiting to reconnect now...")
+            while True:
+                try:
+                    log.debug("Attempting to reconnect to MongoDB...")
+                    db = pymongo.MongoClient(CONNECTION_STRING, serverSelectionTimeoutMillis=2000)
+                except ConnectionFailure:
+                    log.info("Failed to reconnect to MongoDB!")
+                    continue
+                log.info("Succesfully reconnected to MongoDB!")
+                break
+
         completed_crafts = s.progress["completed"] + s.progress["skipped"] + finished_additive
         with open("crafter.breadcrumb", "w") as ch_breadfile:
             ch_breadfile.truncate(0)
