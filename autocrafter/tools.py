@@ -10,7 +10,6 @@ import fake_useragent
 import pymongo
 import requests
 import urllib3.exceptions
-from bs4 import BeautifulSoup
 from requests.exceptions import InvalidSchema
 
 ua = fake_useragent.UserAgent()
@@ -332,7 +331,10 @@ def get_depth_of(element, db):
     elif element in depth_item_cache.keys():
         depth = depth_item_cache[element]
         if oldest is not None:
-            depth_item_cache.pop(oldest)
+            try:
+                depth_item_cache.pop(oldest)
+            except KeyError:  # Weird thread concurrency bug. One in 10 billion operations will fail.
+                pass
         depth_item_cache.update({element: depth})
         return depth
     else:
