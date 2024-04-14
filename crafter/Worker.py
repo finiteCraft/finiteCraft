@@ -2,8 +2,8 @@ import collections
 import logging
 import warnings
 from pymongo.errors import *
-from autocrafter.Proxy import Proxy
-from autocrafter.tools import *
+from crafter.Proxy import Proxy
+from crafter.tools import *
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)

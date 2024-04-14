@@ -5,10 +5,10 @@ import pymongo
 import logging
 from pymongo.errors import ConnectionFailure
 import librarian
-from autocrafter.Proxy import Proxy
-from autocrafter.Scheduler import Scheduler
-from autocrafter.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread,
-                               get_depth_of)
+from crafter.Proxy import Proxy
+from crafter.Scheduler import Scheduler
+from crafter.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread,
+                           get_depth_of)
 
 
 CONNECTION_STRING = "mongodb://192.168.1.143:27017"

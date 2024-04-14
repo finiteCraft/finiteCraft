@@ -1,9 +1,9 @@
 import logging
 import time
 
-# from autocrafter.Worker import Worker
-from autocrafter.exceptions import *
-from autocrafter.tools import *
+# from crafter.Worker import Worker
+from crafter.exceptions import *
+from crafter.tools import *
 
 # Protocols
 SOCKS5 = "socks5h"

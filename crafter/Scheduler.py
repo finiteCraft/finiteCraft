@@ -1,9 +1,9 @@
 import collections
 import logging
 
-from autocrafter.Proxy import Proxy
-from autocrafter.Worker import Worker
-from autocrafter.tools import *
+from crafter.Proxy import Proxy
+from crafter.Worker import Worker
+from crafter.tools import *
 
 
 class Scheduler:
