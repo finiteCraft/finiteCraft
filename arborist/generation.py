@@ -8,7 +8,7 @@ from structures import *
 
 log = logging.getLogger("Tree Generation")
 logging.basicConfig()
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 GIVEN_ELEMENTS: set[str] = {"Water", "Fire", "Wind", "Earth"}
 
 
@@ -17,7 +17,7 @@ def get_recipes_for(element: str) -> list[tuple[str, str]]:
     d = librarian.query_data(element, "search")
     if d is None:
         return []
-    ret: list[tuple[str, str]] = d["pre"]
+    ret: list[tuple[str, str]] = deepcopy(d["pre"])
     ret.extend(d["post"])
     return ret
 
@@ -434,7 +434,7 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
     leaves.append(target_element)
     smallest = {}
     # dc1_root_depth = librarian.query_data(target_element, "search")["depth"]
-    tree = h_smallest_tree_dc2(working_tree, leaves, smallest)
+    tree = h_smallest_tree_dc3(working_tree, leaves, smallest)
     log.info("Tree Search Complete")
     return tree
 
@@ -443,13 +443,15 @@ if __name__ == "__main__":
     librarian.init()
 
     print(get_pre_recipes_for("Wave"))
+    print(get_pre_recipes_for("Stone"))
+    print(librarian.query_data("Wine")["depth"])
 
     start = time.time_ns()
     # time.sleep(0.5)
     print(basic_tree("Stone"))
-    print(f"Basic took {time.time_ns() - start} ns")
+    print(f"Basic took {(time.time_ns() - start) / 1e9} s")
 
     start = time.time_ns()
     # time.sleep(0.5)
     print(smallest_tree("Stone"))
-    print(f"Smallest took {time.time_ns() - start} ns")
+    print(f"Smallest took {(time.time_ns() - start) / 1e9} s")
