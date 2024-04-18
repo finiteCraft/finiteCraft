@@ -11,8 +11,9 @@ LOCAL_DB_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/../api"
 REPO = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 DATA_TYPES = ["display", "search"]
-CHUNK_CAPACITY = 1000
-CACHE_CAPACITY = 10
+CHUNK_CAPACITY = 1000    # The max size of a chunk
+CACHE_CAPACITY = 100      # The max number of chunks allowed to be simultaneously loaded
+DEFAULT_NUM_CHUNKS = 64  # The initial number of chunks in the database
 
 class Chunk:
     def __init__(self, hsh: int, data_type: str, data: dict):
@@ -27,13 +28,15 @@ class Chunk:
 
 log = logging.getLogger("Librarian")
 log.setLevel(logging.INFO)
-num_chunks = 64
 
-cache: deque[Chunk] = deque()
+chunk_map: dict[str, list[Chunk | None]] = {}  # A dictionary-array containing pointers to all loaded chunks
+num_chunks: int = 0  # Number of chunks in the database
+cache: deque[Chunk] = deque()  # A queue of the loaded chunks. Used to keep track of order added
 
 def cache_pop():
     """Removes the first chunk from the cache, and saves it if it has been updated."""
     chunk = cache.popleft()
+    chunk_map[chunk.data_type][chunk.hsh] = None
 
     if chunk.updated:
         log.debug("Saving cache.")
@@ -42,6 +45,7 @@ def cache_pop():
         with open(f"{path}/{chunk.hsh}.json", "w") as fp:
             json.dump(chunk.data, fp)
         log.debug(f"File {path}/{chunk.hsh}.json dumped.")
+    del chunk
 
 
 def cache_clear():
@@ -52,10 +56,7 @@ def cache_clear():
 
 def cache_contains(hsh: int, data_type: str) -> bool:
     """Checks if the cache contains a chunk with the given chunk hash and data type."""
-    for chunk in cache:
-        if chunk.hsh == hsh and chunk.data_type == data_type:
-            return True
-    return False
+    return chunk_map[data_type][hsh] is not None
 
 
 def cache_get(hsh: int, data_type: str) -> Chunk | None:
@@ -63,15 +64,12 @@ def cache_get(hsh: int, data_type: str) -> Chunk | None:
     Returns the first chunk in the cache with the given chunk hash and data type.
     If no chunk exists, return None.
     """
-
-    for chunk in cache:
-        if chunk.hsh == hsh and chunk.data_type == data_type:
-            return chunk
-    return None
+    return chunk_map[data_type][hsh]
 
 
 def init():
     """Initializes the librarian settings and updates the local database."""
+    global chunk_map
     global num_chunks
 
     update_local()
@@ -81,10 +79,11 @@ def init():
             settings = json.load(sp)
             num_chunks = settings["num_chunks"]
     else:
-        num_chunks = 64
+        num_chunks = DEFAULT_NUM_CHUNKS
         with open(f"{LOCAL_DB_PATH}/settings.json", "w") as sp:
-            settings = {"num_chunks": num_chunks}
+            settings = {"num_chunks": DEFAULT_NUM_CHUNKS}
             json.dump(settings, sp)
+    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in DATA_TYPES}
 
 
 def remove_directories():
@@ -104,7 +103,6 @@ def chunk_hash(key: str, nc: int | None = None) -> int:
     """
     if nc is None:
         nc = num_chunks
-
     prime = 7
     code = 0
     for c in key:
@@ -114,6 +112,7 @@ def chunk_hash(key: str, nc: int | None = None) -> int:
 
 def rehash(new_num_chunks):
     """Rehashes all the data in the database to fit the new number of chunks."""
+    global chunk_map
     global num_chunks
 
     log.info("Beginning Rehash...")
@@ -132,6 +131,7 @@ def rehash(new_num_chunks):
     else:
         files = []
     num_chunks = new_num_chunks
+    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in DATA_TYPES}
 
     for f in files:
         log.debug(f"Rehashing file: {f}")
@@ -238,6 +238,7 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> C
     :param local: whether to search for a local version of the chunk
     """
     global cache
+    global chunk_map
 
     rel_path = f"{data_type}/{ch}.json"
 
@@ -266,7 +267,8 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> C
             raise IndexError(f"Attempted to access non-existent chunk: {data_type}/{ch}.json")
 
     chunk = Chunk(ch, data_type, data)
-    cache.append(chunk)
+    chunk_map[data_type][ch] = chunk  # Save the chunk here
+    cache.append(chunk)    # Still add it to queue to keep track of order added
     log.debug(f"Chunk {ch} (data type={data_type}) successfully loaded!")
     return chunk
 
@@ -290,20 +292,19 @@ def query_data(key: str, data_type="display", local=False) -> dict | None:
     return None
 
 
-def store_data(key: str, data: dict, data_type="display", local=False) -> bool:
+def store_data(key: str, data: dict, data_type="display") -> bool:
     """
     Stores the given data in the database.
     :param key: the key of the data
     :param data: the data to store
     :param data_type: the type of the data
-    :param local: whether to use the local database
     :return: True if the key already existed, false otherwise
     """
 
     ch = chunk_hash(key)
     chunk = cache_get(ch, data_type)
     if chunk is None:
-        chunk = load_chunk(ch, data_type, create_new=True, local=local)
+        chunk = load_chunk(ch, data_type, create_new=True, local=True)
 
     chunk.updated = True
     new_key = key not in chunk.data
@@ -320,10 +321,12 @@ def store_data(key: str, data: dict, data_type="display", local=False) -> bool:
 if __name__ == "__main__":
     logging.basicConfig()
     log.setLevel(logging.DEBUG)
-    update_local()
     init()
     print(query_data("Stone", "search"))
     print(query_data("Lava", "display"))
     for chunk in cache:
         print(chunk)
-    update_remote()
+    cache_clear()
+    for chunk in cache:
+        print(chunk)
+
