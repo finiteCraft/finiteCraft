@@ -212,7 +212,7 @@ def update_remote():
     repo.index.commit("Updated data")
     log.debug("Pushing changes...")
     origin = repo.remote(name='origin')
-    origin.push()
+    origin.push(force=True)
     log.info("Push attempt done.")
     repo.index.reset()  # Do a reset here to only track files that still exist
     repo.index.add("**")
