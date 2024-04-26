@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import time
 import pymongo
 import logging
@@ -203,11 +205,21 @@ def generate_combinations(new_depth: int):
 if __name__ == "__main__":  # Mainloop
     while True:
         update_librarian(push=False)  # Update librarian for depths TODO: make removal OK
-
+        print(last_depth_count)
         if current_depth is None:
             current_depth = max(last_depth_count.keys(), default=1)  # Figure out the depth we are currently on
         if last_depth_count == {}:  # If the database is empty,
             # populate last_depth_count with starter elements and empty depth 1 to prevent a crash
+            emojis = ["🔥", "💧", "🌬️", "🌍"]
+            for element, item in enumerate(["Fire", "Water", "Wind", "Earth"]):
+                col = db.get_database("crafts").get_collection(item)
+                col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
+            shutil.rmtree("data/depth")
+            os.mkdir("data/depth")
+            with open("data/depth/0", "a") as zerofile:
+                zerofile.write("Fire\nWater\nWind\nEarth\n")
+            with open("data/depth/0.size", "a") as zerosizefile:
+                zerosizefile.write("4")
             last_depth_count = {0: 4, 1: 0}
 
         select_from = []
