@@ -386,7 +386,9 @@ def perform_initial_proxy_ranking(proxies):
 
 def encode_element_name(element):
     """
-    Decode element name so MongoDB can handle it.
+    Decode element name so MongoDB
+
+     can handle it.
     """
     full_period = "\uff0e"
     full_dollar_sign = "\uff04"

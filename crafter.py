@@ -22,9 +22,14 @@ parser.add_argument("--disable-proxy-rank", help="Disable the proxy ranking (spe
                                                  " slows down the program recognizing the usefulness of proxies).",
                     action="store_true")
 
+parser.add_argument("-p", "--push-delay", help="The delay between pushing to GitHub (seconds)", type=int,
+                    default=600)
+
 log_levels = ["debug", "info", "warning", "error", "critical"]
 parser.add_argument("-l", "--log-level", help="The log level to use for the program.", choices=log_levels,
                     default="info")
+
+
 
 transcode_log_levels = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING,
                         "error": logging.ERROR,
@@ -37,7 +42,7 @@ global_log_level = transcode_log_levels[args.log_level]
 db = pymongo.MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=2000, connectTimeoutMS=1000, socketTimeoutMS=1000)
 
 
-def check_mongodb_connection(database: pymongo.MongoClient):
+def wait_for_mongodb_connection(database: pymongo.MongoClient):
     try:
         # The ismaster command is cheap and does not require auth.
         database.admin.command('ismaster')
@@ -61,37 +66,44 @@ def get_db_elements():
     return cols
 
 
-librarian.init(log_level=global_log_level)
-o_value = []
-proxies: list[Proxy] = []
-last_depth_count = {}
-do_ping = True
+librarian.init(log_level=global_log_level)  # Initialize Librarian with our log level
+
+proxies: list[Proxy] = []  # A list of all of the Proxies currently being used
+last_depth_count = {}  # A dictionary of the format {<depth>: <number of elements in database with that depth>}.
+# Updated by update_librarian()
+
+# Initalize logging
 log = logging.getLogger(name="AutoCrafter")
 log.setLevel(global_log_level)
 
-check_mongodb_connection(db)
+wait_for_mongodb_connection(db)  # Ensure we are connected to MongoDB before we proceed
 
 
 def update_librarian(push=True):
+    """
+    Update librarian and push to GitHub if necessary
+    :param push: If true, push to GitHub, otherwise only make local changes
+    """
     global last_depth_count
     log.info(f"Running update_librarian (push={push})")
     start = time.time()
     last_depth_count = {}
     raw_database = {}
     collection_names = db.get_database("crafts").list_collection_names()
+
+    # Load the *entire* database into raw_database :( TODO: FIX
     for i, collection in enumerate(collection_names):
         raw_database.update({collection: list(db["crafts"][collection].find({}, {"_id": 0}))})
+
     stats = {"unique": len(raw_database),
-             "mongodb": db["crafts"].command("dbstats")}
+             "mongodb": db["crafts"].command("dbstats")}  # Stats
     json.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
-    for i, element_key in enumerate(raw_database):
+
+    for i, element_key in enumerate(raw_database):  # Organize data for librarian
         data = raw_database[element_key]
         info = {}
         crafted_by = []
         for document in data:
-            # Don't need this, could readd later?
-            # if document["type"] == "crafts":
-            #     stats["recipes"] += 1
             if document["type"] == "crafted_by":
                 crafted_by.append([document["craft"], document["predepth"], document["recursive"]])
             elif document["type"] == "info":
@@ -102,18 +114,24 @@ def update_librarian(push=True):
                 last_depth_count[info["depth"]] = 1
             else:
                 last_depth_count[info["depth"]] += 1
+
         librarian.store_data(element_key, {"discovered": info["discovered"], "emoji": info["emoji"],
-                                           "depth": info["depth"]}, "display")
-        pre = [i[0] for i in crafted_by if i[1]]
-        post = [i[0] for i in crafted_by if not i[1]]
+                                           "depth": info["depth"]}, "display")  # Store the display data
+        pre = [i[0] for i in crafted_by if i[1]]  # Predepth recipes
+        post = [i[0] for i in crafted_by if not i[1]]  # Postdepth recipes
         librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"]}, "search")
+        # Store the search data
+
     librarian.cache_clear()
     if push:
         librarian.update_remote()
     log.info(f"Done running update_librarian (push={push}, elapsed={round(time.time()-start, 2)})")
 
 
-def do_proxy_stuff():
+def prepare_proxies():
+    """
+    Get and rank proxies from 4 different vetted sources and rank them according to their speed
+    """
     global proxies
     raw_proxies = get_many_url_proxies(
         ["https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt",
@@ -131,40 +149,26 @@ def do_proxy_stuff():
         log.info("done")
 
 
-do_proxy_stuff()
-
+prepare_proxies()
 push_to_github = True
-
 current_counter = 0
-
 first_loop = True
 current_depth = None
 slept = 0
 
 
 def combinatorial(x: int):
+    """
+    Generate a combinatorial number for a given depth. This formula works like xP2 + x (combinatorial pick).
+    """
     return ((x * (x-1)) / 2) + x
 
 
-# def generate_combinations(elements: list[str], depth: int):
-#     try:
-#         elements.remove("Nothing")  # Remove null case
-#     except ValueError:
-#         pass
-#     for craft in itertools.combinations_with_replacement(elements, 2):
-#         while True:
-#             try:
-#                 depth_0 = get_depth_of(craft[0], db)
-#                 depth_1 = get_depth_of(craft[1], db)
-#             except (NetworkTimeout, ServerSelectionTimeoutError, AutoReconnect, ConnectionFailure):
-#                 check_mongodb_connection(db)
-#                 continue
-#             break
-#         if (depth_0 == depth or depth_1 == depth) and (depth_1 <= depth and depth_0 <= depth):
-#             yield craft, depth_0, depth_1
-
-
-def generate_combinations_new(new_depth: int):
+def generate_combinations(new_depth: int):
+    """
+    Use the depthfiles (in /data/depth) to generate the combinations as a generator.
+    Guarantees a combination every inner loop
+    """
     try:
         this_depthfile = open(f"data/depth/{new_depth - 1}")
         for prev_depth in range(new_depth - 1):
@@ -196,44 +200,50 @@ def generate_combinations_new(new_depth: int):
                          f"Do not have elements of previous depths")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # Mainloop
     while True:
-        # pick_from = get_db_elements()
-        update_librarian(push=False)
+        update_librarian(push=False)  # Update librarian for depths TODO: make removal OK
 
         if current_depth is None:
-            current_depth = max(last_depth_count.keys(), default=1)
-        if last_depth_count == {}:
+            current_depth = max(last_depth_count.keys(), default=1)  # Figure out the depth we are currently on
+        if last_depth_count == {}:  # If the database is empty,
+            # populate last_depth_count with starter elements and empty depth 1 to prevent a crash
             last_depth_count = {0: 4, 1: 0}
-        print(current_depth, last_depth_count)
 
         select_from = []
+        # The total number of elements in the database
         sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
-        total_crafts = int(combinatorial(sum_of_total) - combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
-        log.info(f"generating combinations for depth {current_depth} (total crafts: {total_crafts})")
-        depth_cache = {}
-        combin = generate_combinations_new(current_depth)
-        log.info("task done")
-        s = Scheduler(combin, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian",
-                      max_workers=args.workers,
-                      log_level=global_log_level)
-        s_thread = ImprovedThread(target=s.run, daemon=True)
 
+        # The number of RECIPES in the depth (for progress bar / more efficient stop condition)
+        total_crafts = int(combinatorial(sum_of_total) -
+                           combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
+
+        combination_generator = generate_combinations(current_depth)
+        log.info(f"generator initalized for depth {current_depth} (total crafts: {total_crafts})")
+        s = Scheduler(combination_generator, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING,
+                      name="Julian", max_workers=args.workers, log_level=global_log_level)
+
+        s_thread = ImprovedThread(target=s.run, daemon=True)  # Run the scheduler
         s_thread.start()
-        while s_thread.is_alive():
+
+        while s_thread.is_alive(): # Just kinda sit here until the thread is done
+
             time.sleep(1)
-            check_mongodb_connection(db)
-            completed_crafts = s.progress["completed"] + s.progress["skipped"]
+            wait_for_mongodb_connection(db)
             slept += 1
+
+            # Determine the total number of proxies currently alive, in case we need to start over.
             alive = 0
             for proxy in proxies:
                 if proxy.disabled_until == 0:
                     alive += 1
             if alive / len(proxies) < 0.1:  # If 90% of proxies die, regenerate them
-                do_proxy_stuff()
+                prepare_proxies()
                 s.proxies = proxies
                 log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
-            if slept % 600 == 0 and push_to_github:
+
+            # Push to GitHub every --push-delay seconds
+            if args.push_delay and slept % args.push_delay == 0:
                 update_librarian(push=True)
 
         current_depth += 1
