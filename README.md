@@ -74,15 +74,16 @@ He has, without a doubt, hard-carried this project.
     - [x] User can get recipe info
   - [x] Docker container
   - [ ] Support for not-always-online MongoDB
-  - [ ] optimized generation algorithm
+  - [x] optimized generation algorithm
 
 
 - [ ] Arborist
   - [x] Basic tree generation
   - [x] Naive search function
   - [x] Basic pruning based on breadcrumb count
-  - [ ] Pulls recipes using Autocrafter API
+  - [x] Pulls recipes using Autocrafter API
   - [ ] Recipe scoring function
+    - [ ] Prioritize recipes that were part of other smallest trees
     - [ ] Uses max depth of the ingredients
     - [ ] Try prioritizing recipes that make use of already crafted elements
     - [ ] Come up with other ideas
