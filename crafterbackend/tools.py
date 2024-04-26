@@ -1,6 +1,7 @@
 import datetime
 import ipaddress
 import json
+import os.path
 import random
 import sys
 import threading
@@ -193,18 +194,23 @@ class ImprovedThread(threading.Thread):
 
 
 def get_url_proxies(url) -> list:
+    """
+    Get proxies from a URL. Returns a list of dictionaries containing the proxy ip/port information.
+    """
     proxies = requests.get(url)
     pxs = proxies.text.split("\n")
     raw_proxies = []
     for item in pxs:
         item = item.replace("socks5://", "")
-
         if ":" in item:
             raw_proxies.append({'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""), 'protocol': 'socks5h'})
     return raw_proxies
 
 
 def get_many_url_proxies(prox_links):
+    """
+    Get many URL proxies. A wrapper for get_url_proxies.
+    """
     raw = []
     for prox_link in prox_links:
         for p in get_url_proxies(prox_link):
@@ -234,46 +240,6 @@ def parse_crafts_into_tree(raw_crafts) -> dict:
     return out
 
 
-depth_item_cache = {}
-max_depth_cache_size = 1e8  # cache size
-
-
-def get_depth_of(element, db):
-    if len(depth_item_cache.keys()):
-        oldest = list(depth_item_cache.keys())[0]
-    else:
-        oldest = None
-    if element in ["Wind", "Fire", "Earth", "Water"]:
-        return 0
-    elif element in depth_item_cache.keys():
-        depth = depth_item_cache[element]
-        if oldest is not None:
-            try:
-                depth_item_cache.pop(oldest)
-            except KeyError:  # Weird thread concurrency bug. One in 10 billion operations will fail.
-                pass
-        depth_item_cache.update({element: depth})
-        return depth
-    else:
-        craft_result_collection = db["crafts"].get_collection(encode_element_name(element))
-
-        info_doc = craft_result_collection.find_one({"type": "info"})
-        if info_doc is None:
-            return 1
-        if len(depth_item_cache) == max_depth_cache_size:
-            if oldest is not None:
-                depth_item_cache.pop(oldest)
-            depth_item_cache.update({element: info_doc["depth"]})
-        else:
-            depth_item_cache[element] = info_doc["depth"]
-        return info_doc["depth"]
-
-
-def invalidate_element(element):
-    if element in depth_item_cache.keys():
-        del depth_item_cache[element]
-
-
 depth_lock = threading.Lock()
 
 
@@ -284,8 +250,11 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     :param db: the MongoClient to add to
     :return: None
     """
-    print(raw_craft)
+
+    # Is the craft recursive?
     is_recursive = raw_craft[0][0][0] == raw_craft[1]["result"] or raw_craft[0][0][1] == raw_craft[1]["result"]
+
+    # Get the collections for both items and their result.
     craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][1]))
     craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][0]))
     craft_result_collection = db["crafts"].get_collection(encode_element_name(raw_craft[1]["result"]))
@@ -293,30 +262,43 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     element_one_depth = raw_craft[0][1]
     element_two_depth = raw_craft[0][2]
 
-    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:
+    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:  # Depth 0 check
         depth = 0
     else:
-        depth = max(element_one_depth, element_two_depth) + 1
-    if info_doc:
+        depth = max(element_one_depth, element_two_depth) + 1  # Otherwise, max the depths and add 1
+
+    if info_doc:  # If the info document exists, override with that value.
         final_element_depth = info_doc["depth"]
     else:
         final_element_depth = depth
+
+    # Is the recipe predepth?
     is_predepth = final_element_depth >= element_one_depth and final_element_depth >= element_two_depth
+
+    # The new info document
     new_document_data = {"type": "info",
                          "emoji": raw_craft[1]["emoji"],
                          "discovered": raw_craft[1]["discovered"],
                          "depth": depth}
-    if info_doc is None:  # Doesn't exist
+
+    if info_doc is None:  # Doesn't exist, insert
         craft_result_collection.insert_one(new_document_data)
         with depth_lock:
             with open(f'data/depth/{final_element_depth}', 'a') as f:
                 f.write(f"{raw_craft[1]['result']}\n")
-            with open(f'data/depth/{final_element_depth}.size', 'a') as f:
-                f.write(f"{raw_craft[1]['result']}\n")
+            if not os.path.exists(f"data/depth/{final_element_depth}.size"):
+                update_sizefile = 1
+            else:
+                with open(f'data/depth/{final_element_depth}.size', 'r') as size:
+                    update_sizefile = int(size.readline()) + 1
+            with open(f'data/depth/{final_element_depth}.size', 'w') as size:
+                size.write(str(update_sizefile))
 
-    elif info_doc["depth"] > new_document_data["depth"]:
+    elif info_doc["depth"] > new_document_data["depth"]:  # Newer depth? Optimize the depth
         craft_result_collection.delete_one(info_doc)
         craft_result_collection.insert_one(new_document_data)
+
+    # Generate new documents
     new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0][0], "recursive": is_recursive,
                                "predepth": is_predepth}
     new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][0],
@@ -324,6 +306,7 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][1],
                              "recursive": is_recursive, "predepth": is_predepth}
 
+    # Insertion logic
     if new_document_crafts_1["with"] == new_document_crafts_2["with"]:  # double recipe (Water + Water)
         if craft_item_two_collection.find_one(new_document_crafts_1) is None:
             craft_item_two_collection.insert_one(new_document_crafts_1)
@@ -402,12 +385,18 @@ def perform_initial_proxy_ranking(proxies):
 
 
 def encode_element_name(element):
+    """
+    Decode element name so MongoDB can handle it.
+    """
     full_period = "\uff0e"
     full_dollar_sign = "\uff04"
     return element.replace(".", full_period).replace("$", full_dollar_sign)
 
 
 def decode_element_name(element):
+    """
+    Decode element name so we can handle it.
+    """
     full_period = "\uff0e"
     full_dollar_sign = "\uff04"
     return element.replace(full_period, ".").replace(full_dollar_sign, '$')
