@@ -55,7 +55,7 @@ def wait_for_mongodb_connection(database: pymongo.MongoClient):
                                                connectTimeoutMS=1000, socketTimeoutMS=1000)
                 database.admin.command('ismaster')
             except (NetworkTimeout, ConnectionFailure, ServerSelectionTimeoutError, AutoReconnect):
-                log.info(f"Failed to reconnect to MongoDB! (uri={CONNECTION_STRING})")
+                log.warning(f"Failed to reconnect to MongoDB! (uri={CONNECTION_STRING})")
                 continue
             log.info("Succesfully reconnected to MongoDB!")
             break
