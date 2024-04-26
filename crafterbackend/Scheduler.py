@@ -1,18 +1,18 @@
 import collections
 import logging
-
-from crafter.Proxy import Proxy
-from crafter.Worker import Worker
-from crafter.tools import *
+from typing import Generator
+from crafterbackend.Proxy import Proxy
+from crafterbackend.Worker import Worker
+from crafterbackend.tools import *
 
 
 class Scheduler:
-    def __init__(self, crafts: list[list[str, str] | tuple[str, str]], proxies: list[Proxy],
-                 mongo_connection_string: str = None, name: str = "Julian",
-                 log_level: str = logging.INFO) -> None:
+    def __init__(self, crafts: Generator[tuple[str, str], int, int], job_size: int, proxies: list[Proxy],
+                 mongo_connection_string: str = None, name: str = "Julian", max_workers: int = 5,
+                 log_level: int = logging.INFO) -> None:
         """
         Initialize a Scheduler.
-        :param crafts: The crafts that have to be completed
+        :param crafts: The crafts that have to be completed as a Generator
         :param proxies: the proxies we can use to do the job
         :param name: The name of the Scheduler
         :param log_level: the log level of the internal logger
@@ -20,23 +20,20 @@ class Scheduler:
 
         self.proxies = proxies
 
-        # Prepare the deque
-        self.crafts = collections.deque(maxlen=len(crafts))
-        for item in crafts:
-            self.crafts.append(item)
-        self.initial_craft_size = len(crafts)
+        self.spare_crafts = collections.deque(maxlen=job_size)
+        self.craft_func = crafts
+        self.initial_craft_size = job_size
         self.workers = []
-        self.craft_list = crafts
-        self.max_workers = 5
+        self.max_workers = max_workers
         self.kill = False
         self.name = name
         self.logger = logging.getLogger(f"Scheduler({name})")
         self.logger.setLevel(log_level)
         self.progress = {"status": "not started"}  # Progress metrics for other scripts
-        self.output_crafts = []
         self.saving_to_db = type(mongo_connection_string) is str
         self.db = pymongo.MongoClient(mongo_connection_string, serverSelectionTimeoutMS=5000)
         self.all_workers = []
+        self.lock = threading.Lock()
 
     def run(self) -> None:
         """
@@ -44,26 +41,24 @@ class Scheduler:
         :return: None
         """
 
-        self.output_crafts = []
         self.workers = []
         self.all_workers = []
+        spare_crafts = collections.deque(maxlen=self.initial_craft_size)
         # Prepare the Tyler-Workers
-        total_amount_of_crafts = len(self.craft_list)
-        if total_amount_of_crafts == 0:
+        if self.initial_craft_size == 0:
             return
         rank = rank_proxies(self.proxies)
-        for id in range(self.max_workers):
-            new_worker = Worker(self.proxies, self.crafts, rank[id], f"Tyler-{id}",
-                                return_craft_reference=self.output_crafts, db=self.db, log_level=self.logger.level)
+        for worker_id in range(self.max_workers):
+            new_worker = Worker(self.proxies, self.craft_func, spare_crafts, rank[worker_id], self.lock,
+                                f"Tyler-{worker_id}", db=self.db, log_level=self.logger.level)
             self.workers.append(new_worker)
             self.all_workers.append(new_worker)
 
         start_time = time.time()
-        # Start the Workers
+        # Start the Tyler-Workers
         for w in self.workers:
             w.begin_working()
 
-        # current_added_index = 0
         # Main loop
         completed = 0
         skipped = 0
@@ -76,7 +71,7 @@ class Scheduler:
                 skipped += w.skipped
 
             # Calculate completed percentage and ETA
-            complete_percentage = 100 * (completed + skipped) / total_amount_of_crafts
+            complete_percentage = 100 * (completed + skipped) / self.initial_craft_size
 
             if complete_percentage:
                 current_time = time.time() - start_time
@@ -88,14 +83,13 @@ class Scheduler:
 
             # Log the information
             self.logger.info(f"Current overall progress: "
-                             f"{completed + skipped}/{total_amount_of_crafts} ({round(complete_percentage, 2)}%,"
-                             f" ETA: {remaining_time}s)")
+                             f"{completed + skipped}/{self.initial_craft_size} ({round(complete_percentage, 2)}%,"
+                             f" ETA: {remaining_time}s, completed: {completed}, skipped: {skipped})")
             # Update internal progress
             self.progress = {"status": "running", "jobs_completed": self._generate_self_running(),
-                             "completed": completed, "skipped": skipped, "total_amount": total_amount_of_crafts,
+                             "completed": completed, "skipped": skipped, "total_amount": self.initial_craft_size,
                              "percentage_done": complete_percentage, "workers_alive": len(self.workers),
                              "eta": remaining_time}
-
             if completed + skipped == self.initial_craft_size:  # All crafts are done!
                 self.logger.info("All crafts are now complete! Sending kill to workers...")
                 for w in self.workers:

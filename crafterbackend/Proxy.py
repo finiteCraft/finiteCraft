@@ -1,9 +1,6 @@
 import logging
-import time
-
-# from crafter.Worker import Worker
-from crafter.exceptions import *
-from crafter.tools import *
+from crafterbackend.exceptions import *
+from crafterbackend.tools import *
 
 # Protocols
 SOCKS5 = "socks5h"
@@ -77,7 +74,7 @@ class Proxy:
     def submit(self, success: bool, time_elapsed: float | int | None = 0, did_connect: bool = True,
                did_respond: bool = True, retry_after=0) -> None:
         """
-        Update the stat metrics of this Proxy so it can be compared.
+        Update the stat metrics of this Proxy, so it can be compared.
         :param success: Whether the request succeeded
         :param time_elapsed: If success=True, how long did it take?
         :param did_connect: If success=False, could we connect to the Proxy?

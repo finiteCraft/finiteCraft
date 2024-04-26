@@ -8,7 +8,7 @@ from collections import deque
 
 SESSION = requests.sessions.Session()
 LOCAL_DB_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/../api"
-REPO = Repo(f"{LOCAL_DB_PATH}/.git")
+repo = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 DATA_TYPES = ["display", "search"]
 CHUNK_CAPACITY = 1000    # The max size of a chunk
@@ -27,11 +27,12 @@ class Chunk:
 
 
 log = logging.getLogger("Librarian")
-log.setLevel(logging.INFO)
+log.setLevel(logging.INFO)  # Default logging level
 
 chunk_map: dict[str, list[Chunk | None]] = {}  # A dictionary-array containing pointers to all loaded chunks
 num_chunks: int = 0  # Number of chunks in the database
 cache: deque[Chunk] = deque()  # A queue of the loaded chunks. Used to keep track of order added
+
 
 def cache_pop():
     """Removes the first chunk from the cache, and saves it if it has been updated."""
@@ -67,11 +68,11 @@ def cache_get(hsh: int, data_type: str) -> Chunk | None:
     return chunk_map[data_type][hsh]
 
 
-def init():
+def init(log_level):
     """Initializes the librarian settings and updates the local database."""
     global chunk_map
     global num_chunks
-
+    log.setLevel(log_level)
     update_local()
 
     if os.path.exists(f"{LOCAL_DB_PATH}/settings.json"):
@@ -206,26 +207,27 @@ def ensure_capacity():
 def update_remote():
     """Pushes the library data to the online database"""
     log.info("Beginning push process...")
-    REPO.git.add(all=True)  # This does work on Linux. Use REPO.git.execute("git add . --all") on Windows
+    repo.git.add(all=True)  # This does work on Linux. Use repo.git.execute("git add . --all") on Windows
     log.debug("Committing changes...")
-    REPO.index.commit("Updated data")
+    repo.index.commit("Updated data")
     log.debug("Pushing changes...")
-    origin = REPO.remote(name='origin')
+    origin = repo.remote(name='origin')
     origin.push()
     log.info("Push attempt done.")
-    REPO.index.reset()  # Do a reset here to only track files that still exist
-    REPO.index.add("**")
+    repo.index.reset()  # Do a reset here to only track files that still exist
+    repo.index.add("**")
 
 
 def update_local():
     """Pulls from the online database to the library"""
     log.info("Beginning pull process...")
     log.debug("Pulling changes...")
-    origin = REPO.remote(name='origin')
-    origin.pull()
+    origin = repo.remote(name='origin')
+    origin.fetch()
+    repo.git.reset('--hard', 'HEAD')
     log.info("Pull attempt done.")
-    REPO.index.reset()  # Do a reset here to only track files that still exist
-    REPO.index.add("**")
+    repo.index.reset()  # Do a reset here to only track files that still exist
+    repo.index.add("**")
 
 
 def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> Chunk:

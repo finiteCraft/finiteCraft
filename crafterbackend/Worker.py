@@ -1,15 +1,17 @@
 import collections
 import logging
+import typing
 import warnings
 from pymongo.errors import *
-from crafter.Proxy import Proxy
-from crafter.tools import *
+from crafterbackend.Proxy import Proxy
+from crafterbackend.tools import *
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
 MAXIMUM_REQUESTS_PER_SECOND = 5  # The maximum requests per second. Higher values will cause proxies to be ratelimited.
 NEW_PROXY_SLEEP = 10  # The amount of time for the proxy function to sleep after failing to find a new proxy
 EMPTY_SLEEP = 1
+
 
 class Worker:
     """
@@ -25,31 +27,30 @@ class Worker:
     run error checking
     """
 
-    def __init__(self, all_proxies: list, all_crafts: collections.deque, proxy: Proxy, worker_id: str | int,
-                 log_level=logging.INFO, return_craft_reference: list = None, db: pymongo.MongoClient = None,
+    def __init__(self, all_proxies: list, craft_func: typing.Generator, spare_crafts: collections.deque, proxy: Proxy,
+                 lock: threading.Lock, worker_id: str | int, log_level=logging.INFO, db: pymongo.MongoClient = None,
                  batch_size: int = 5) -> None:
         """
         Initialize the Worker.
         :param all_proxies: the list of all the available proxies
-        :param all_crafts: the collections.deque of all available crafts that need to be performed
+        :param craft_func: the generator of crafts
+        :param spare_crafts: the collections.deque for failed crafts to enter
         :param proxy: The Proxy the worker should start with
         :param worker_id: the ID of the worker (for log messages)
         :param log_level: the log level to set the internal logger to.
-        :param return_craft_reference: the reference to the list to put the completed crafts in. If None,
-         data will be stored in self.crafts
         """
-        if return_craft_reference is None:
-            return_craft_reference = []
+
         self.kill = False  # Whether to force quit the worker. Set this externally
-        self.thread = ImprovedThread(target=Worker.run, args=[self])
+        self.thread = ImprovedThread(target=Worker.run, args=[self], daemon=True)
         self.all_proxies = all_proxies
-        self.all_crafts = all_crafts
+        self.spare_crafts = spare_crafts
+        self.craft_func = craft_func
         self.proxy = proxy
+        self.lock = lock
         self.session = requests.Session()
         self.id = worker_id
         self.logger = logging.getLogger(f"Worker({self.id})")
         self.logger.setLevel(log_level)
-        self.crafts = return_craft_reference
         self.batch_size = batch_size  # The maximum number of jobs to concurrently send.
         self.completed = 0  # Keep track of completed jobs
         self.db = db
@@ -61,7 +62,7 @@ class Worker:
         Start the Worker
         :return: None
         """
-        self.thread = ImprovedThread(target=Worker.run, args=[self])
+        self.thread = ImprovedThread(target=Worker.run, args=[self], daemon=True)
         self.thread.start()
 
     def finish_working(self) -> bool:
@@ -103,52 +104,60 @@ class Worker:
             batch_start = time.time()
 
             batch_crafts = []
+            self.logger.debug(f"Now allocating batch {batch_number} "
+                              f"(Current execution time: {round(time.time() - s, 2)}s)")
             try:
-                for _ in range(self.batch_size):
-                    batch_crafts.append(self.all_crafts.popleft())
-            except IndexError:
+                try:
+                    for _ in range(self.batch_size):
+                        batch_crafts.append(self.spare_crafts.popleft())
+                except IndexError:
+                    pass
+                if len(batch_crafts) != self.batch_size:
+                    with self.lock:
+                        for _ in range(self.batch_size-len(batch_crafts)):
+                            batch_crafts.append(next(self.craft_func))
+            except StopIteration:
                 if len(batch_crafts) == 0:
-                    self.logger.debug(f"Craft deque is empty! Waiting {EMPTY_SLEEP} seconds...")
+                    self.logger.debug(f"There are no more crafts! Waiting {EMPTY_SLEEP} second(s)...")
                     time.sleep(EMPTY_SLEEP)
                     continue
                 else:
                     self.logger.debug(f"Grabbed remaining {len(batch_crafts)} "
-                                     f"crafts from craft deque. Going to compute now...")
+                                      f"crafts from craft generator. Going to compute now...")
 
             if not len(batch_crafts):  # It was empty from the start
                 return
 
             self.logger.debug(f"Now executing batch {batch_number} "
-                             f"(Current execution time: {round(time.time() - s, 2)}s)")
+                              f"(Current execution time: {round(time.time() - s, 2)}s)")
             batch_threads = []
             batch_indices = []
             for index, current_craft in enumerate(batch_crafts):
-                self.logger.debug(f"Job {index + 1} of batch {batch_number} is starting with craft {current_craft}...")
+                self.logger.debug(f"Job {index + 1} of batch {batch_number}"
+                                  f" is starting with craft {current_craft[0]}...")
 
                 # Check if we can be lazy and skip the craft.
-                #  (this function works even if there is no database so don't worry future me)
                 while True:
                     try:
-                        check = check_craft_exists_db(current_craft, self.db, return_craft_data=True)
+                        check = check_craft_exists_db(current_craft[0], self.db, return_craft_data=True)
                     except (ServerSelectionTimeoutError, AutoReconnect):
                         self.logger.error("Failed to check craft existence! Retrying in 1 second...")
                         continue
                     break
                 if check is not False:
                     self.logger.debug(f"Skipping job {index + 1} of batch {batch_number}"
-                                      f" because data is already present in database. (craft={current_craft})")
+                                      f" because data is already present in database. (craft={current_craft[0]})")
                     self.skipped += 1
-                    self.crafts.append([current_craft, check])
                     continue
 
                 self.logger.debug(f"I actually need to compute job {index+1} of batch {batch_number} "
-                                  f"because there isn't any data. (craft={current_craft})")
+                                  f"because there isn't any data. (craft={current_craft[0]})")
 
-                # Start the craft worker
+                # Initiate the craft request
                 batch_indices.append(index)
                 t = ImprovedThread(target=craft,
-                                   args=[current_craft[0], current_craft[1], self.proxy, 10, self.session],
-                                   name=f"{self.id}-Job{index + 1}")
+                                   args=[current_craft[0][0], current_craft[0][1], self.proxy, 10, self.session],
+                                   name=f"{self.id}-Job{index + 1}", daemon=True)
                 t.start()
                 batch_threads.append(t)
 
@@ -161,18 +170,18 @@ class Worker:
                 if self.kill:
                     return  # Check for kill switch
                 result: dict = thread.join()
-                self.logger.debug(f"Job {index + 1} of batch {batch_number} returned value: {result}")
+                self.logger.debug(f"Job {index + 1} of batch {batch_number} {batch_crafts[index][0]}"
+                                  f" returned value: {result}")
                 if result["status"] == "success":
+                    # print(batch_crafts[batch_indices[index]])
                     self.completed += 1
-                    self.crafts.append([batch_crafts[index], result])  # Save the craft
-                    if self.db is not None:  # If DB is enabled
-                        while True:
-                            try:
-                                add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
-                            except (ServerSelectionTimeoutError, AutoReconnect):
-                                self.logger.error("Failed to log craft to database! Retrying in 1 second...")
-                                continue
-                            break
+                    while True:
+                        try:
+                            add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
+                        except (ServerSelectionTimeoutError, AutoReconnect):
+                            self.logger.error("Failed to log craft to database! Retrying in 1 second...")
+                            continue
+                        break
                     self.proxy.submit(True, result["time_elapsed"])
                 # Submit metrics to the Proxy object
                 elif result["type"] == "read":
@@ -198,7 +207,7 @@ class Worker:
 
                 # Add the ones we've seen that just failed back to the deque
                 for item in failed_crafts:
-                    self.all_crafts.append(item)
+                    self.spare_crafts.append(item)
 
                 continue  # Don't need to run rate limit code here - the penalty will take care of that
 
@@ -207,6 +216,8 @@ class Worker:
 
             if delta > 0:
                 # If we are too fast for the rate limit, sleep it off
+                self.logger.info(f"Sleeping for {round(delta, 2)} seconds to keep with ratelimit of"
+                                 f" {MAXIMUM_REQUESTS_PER_SECOND} request(s) per second.")
                 time.sleep(delta)
 
             batch_number += 1  # Forgot to put this :(

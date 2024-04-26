@@ -42,9 +42,10 @@ def verify_port(port: str | int) -> bool:
 
 def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.Session | None = None) -> dict:
     """
-    This function, using the proxy IP passed, will attempt to craft two elements together
+    This function, using the proxy IP passed, will attempt to craft two elements together.
+    Note that order does not matter.
     :param session:
-    :param one:
+    :param one: The first element to craft
     :param two: The second element to craft
     :param proxy: The proxy IP
     :param timeout: The amount of time to wait (maximum)
@@ -190,90 +191,6 @@ class ImprovedThread(threading.Thread):
         super().join(*args, **kwargs)
         return self.result
 
-# Deprecated
-# def get_spys_one_proxies() -> list:
-#     """
-#     This function is really complex. Here's how it works:
-#
-#     1. gets the proxy list from spys
-#     2. obtains the randomly generated variables used for the hidden port numbers
-#     3. goes through each proxy and gets the calculation for the port number
-#     4. performs the calculation
-#     5. saves data
-#
-#     This monstrosity could have been avoided if they had just let me scrape.
-#
-#
-#     This is what you get.
-#     :return:
-#     """
-#     proxies = []
-#     proxies_doc = (requests.get('https://spys.one/en/socks-proxy-list',
-#                                 headers={"User-Agent": ua.random, "Content-Type": "application/x-www-form-urlencoded"})
-#                    .text)
-#
-#     # Get the parser
-#     soup = BeautifulSoup(proxies_doc, 'html.parser')
-#     tables = list(soup.find_all("table"))  # Get ALL the tables
-#
-#     # Variable definitions
-#     variables_raw = str(soup.find_all("script")[6]).replace('<script type="text/javascript">', "").replace('</script>',
-#                                                                                                            '').split(
-#         ';')[:-1]
-#
-#     # Define the variables
-#     variables = {}
-#     for var in variables_raw:
-#         name = var.split('=')[0]
-#         value = var.split("=")[1]
-#         if '^' not in value:
-#             variables[name] = int(value)
-#         else:
-#             prev_var = variables[var.split("^")[1]]
-#             variables[name] = int(value.split("^")[0]) ^ int(prev_var)  # Gotta love the bit math
-#
-#     # Get each row of the giant table
-#     trs = tables[2].find_all("tr")[2:]
-#     for tr in trs:
-#         # Try to find the area where the IP and encoded port are
-#         address = tr.find("td").find("font")
-#
-#         if address is None:  # This row doesn't have an IP/port on it
-#             continue
-#
-#         # I've blanked out the sheer amount of weirdness that happens here
-#         raw_port = [i.replace("(", "").replace(")", "") for i in
-#                     str(address.find("script")).replace("</script>", '').split("+")[1:]]
-#
-#         # Calculate the prot
-#         port = ""
-#         for partial_port in raw_port:
-#             first_variable = variables[partial_port.split("^")[0]]
-#             second_variable = variables[partial_port.split("^")[1]]
-#             port += "(" + str(first_variable) + "^" + str(second_variable) + ")+"
-#         port = js2py.eval_js('function f() {return "" + ' + port[:-1] + '}')()
-#
-#         proxies.append(
-#             {"ip": address.get_text(), "port": port, "protocol": "socks5h"})
-#     proxies.append({"ip": None, "port": None, "protocol": "socks5h"})  # The "local" worker
-#
-#     return proxies
-
-
-def get_proxyscrape_proxies() -> list:
-    """
-    ProxyScrape makes it ez at least
-    :)
-    I could use the data for rankings
-    :return:
-    """
-    proxies = requests.get("https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&protocol=socks5&timeout=15000&proxy_format=ipport&format=json")
-    pxs = json.loads(proxies.text)
-    raw_proxies = []
-    for item in pxs["proxies"]:
-        raw_proxies.append({'ip': item['ip'], 'port': str(item['port']), 'protocol': 'socks5h'})
-    return raw_proxies
-
 
 def get_url_proxies(url) -> list:
     proxies = requests.get(url)
@@ -318,7 +235,7 @@ def parse_crafts_into_tree(raw_crafts) -> dict:
 
 
 depth_item_cache = {}
-max_depth_cache_size = 10 ** 8  # cache size
+max_depth_cache_size = 1e8  # cache size
 
 
 def get_depth_of(element, db):
@@ -357,6 +274,9 @@ def invalidate_element(element):
         del depth_item_cache[element]
 
 
+depth_lock = threading.Lock()
+
+
 def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.MongoClient) -> None:
     """
     Add a raw craft to the database.
@@ -364,13 +284,15 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     :param db: the MongoClient to add to
     :return: None
     """
-    is_recursive = raw_craft[0][0] == raw_craft[1]["result"] or raw_craft[0][1] == raw_craft[1]["result"]
-    craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][1]))
-    craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0]))
+    print(raw_craft)
+    is_recursive = raw_craft[0][0][0] == raw_craft[1]["result"] or raw_craft[0][0][1] == raw_craft[1]["result"]
+    craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][1]))
+    craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][0]))
     craft_result_collection = db["crafts"].get_collection(encode_element_name(raw_craft[1]["result"]))
     info_doc = craft_result_collection.find_one({"type": "info"})
-    element_one_depth = get_depth_of(raw_craft[0][0], db)
-    element_two_depth = get_depth_of(raw_craft[0][1], db)
+    element_one_depth = raw_craft[0][1]
+    element_two_depth = raw_craft[0][2]
+
     if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:
         depth = 0
     else:
@@ -384,16 +306,22 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
                          "emoji": raw_craft[1]["emoji"],
                          "discovered": raw_craft[1]["discovered"],
                          "depth": depth}
-    if info_doc is None:
+    if info_doc is None:  # Doesn't exist
         craft_result_collection.insert_one(new_document_data)
+        with depth_lock:
+            with open(f'data/depth/{final_element_depth}', 'a') as f:
+                f.write(f"{raw_craft[1]['result']}\n")
+            with open(f'data/depth/{final_element_depth}.size', 'a') as f:
+                f.write(f"{raw_craft[1]['result']}\n")
+
     elif info_doc["depth"] > new_document_data["depth"]:
         craft_result_collection.delete_one(info_doc)
         craft_result_collection.insert_one(new_document_data)
-    new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0], "recursive": is_recursive,
+    new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0][0], "recursive": is_recursive,
                                "predepth": is_predepth}
-    new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0],
+    new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][0],
                              "recursive": is_recursive, "predepth": is_predepth}
-    new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][1],
+    new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][1],
                              "recursive": is_recursive, "predepth": is_predepth}
 
     if new_document_crafts_1["with"] == new_document_crafts_2["with"]:  # double recipe (Water + Water)
@@ -407,6 +335,7 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
 
     if craft_result_collection.find_one(new_document_crafted_by) is None:
         craft_result_collection.insert_one(new_document_crafted_by)
+
 
 def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient,
                           return_craft_data=False):
