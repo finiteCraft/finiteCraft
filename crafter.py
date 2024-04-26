@@ -166,67 +166,82 @@ def generate_combinations(elements: list[str], depth: int):
             yield craft, depth_0, depth_1
 
 
-def generate_combinations_new(depth: int):
-    this_depthfile = open(f"data/depth/{depth-1}")
-    for fe_index, first_element in enumerate(this_depthfile):
-        for previous_depth in range(0, depth):
-            older_depthfile = open(f"data/depth/{previous_depth}")
-            older_depthfile_size = open(f"data/depth/{previous_depth}.size")
-            for se_index in range(int(older_depthfile_size.readline().replace('\n', ''))):
-                pass
+def generate_combinations_new(new_depth: int):
+    this_depthfile = open(f"data/depth/{new_depth - 1}")
+    for prev_depth in range(new_depth - 1):
+        older_depthfile = open(f"data/depth/{prev_depth}")
+        for l1 in older_depthfile:
+            e1 = l1[:-1]
+            for l2 in this_depthfile:
+                e2 = l2[:-1]
+                yield (e1, e2), prev_depth, new_depth - 1
+            this_depthfile.seek(0)
                 # print(first_element, second_element, depth-1, previous_depth)
                 # yield (first_element[:-1], second_element[:-1]), depth-1, previous_depth
-            older_depthfile.close()
-            older_depthfile_size.close()
+        older_depthfile.close()
+
+    # this_depthfile pointer should already be reset from previous loop
+    while True:
+        l1 = this_depthfile.readline()
+        if len(l1) == 0:
+            break  # Reached EOF
+        fp_loc = this_depthfile.tell()  # Save file pointer location to come back to
+        e1 = l1[:-1]
+        yield (e1, e1), new_depth - 1, new_depth - 1
+        for l2 in this_depthfile:  # Abuse file pointer to only loop through the succeeding elements
+            e2 = l2[:-1]
+            yield (e1, e2), new_depth - 1, new_depth - 1
+        this_depthfile.seek(fp_loc)  # Reset file pointer to where we started
+
     this_depthfile.close()
 
 
-while True:
-    # pick_from = get_db_elements()
-    update_librarian(push=False)
-
-    # if len(pick_from) == 0:
-    #     pick_from = ["Fire", "Water", "Wind", "Earth"]
-    #     emojis = ["🔥", "💧", "🌬️", "🌍"]
-    #     for element, item in enumerate(pick_from):
-    #         col = db.get_database("crafts").get_collection(item)
-    #         col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
-    #     last_depth_count = {0: 4, 1: 0}
-    # if last_depth_count == {0: 4}:
-    #     last_depth_count = {0: 4, 1: 0}
-    if current_depth is None:
-        current_depth = max(last_depth_count.keys(), default=1)
-    if last_depth_count == {}:
-        last_depth_count = {0: 4, 1: 0}
-    print(current_depth, last_depth_count)
-
-    select_from = []
-    sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
-    total_crafts = int(combinatorial(sum_of_total) - combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
-    log.info(f"generating combinations for depth {current_depth} (total crafts: {total_crafts})")
-    depth_cache = {}
-    combin = generate_combinations_new(current_depth)
-    log.info("task done")
-    s = Scheduler(combin, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian",
-                  max_workers=args.workers,
-                  log_level=global_log_level)
-    s_thread = ImprovedThread(target=s.run, daemon=True)
-
-    s_thread.start()
-    while s_thread.is_alive():
-        time.sleep(1)
-        check_mongodb_connection(db)
-        completed_crafts = s.progress["completed"] + s.progress["skipped"]
-        slept += 1
-        alive = 0
-        for proxy in proxies:
-            if proxy.disabled_until == 0:
-                alive += 1
-        if alive / len(proxies) < 0.1:  # If 90% of proxies die, regenerate them
-            do_proxy_stuff()
-            s.proxies = proxies
-            log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
-        if slept % 600 == 0 and push_to_github:
-            update_librarian(push=True)
-
-    current_depth += 1
+# while True:
+#     # pick_from = get_db_elements()
+#     update_librarian(push=False)
+#
+#     # if len(pick_from) == 0:
+#     #     pick_from = ["Fire", "Water", "Wind", "Earth"]
+#     #     emojis = ["🔥", "💧", "🌬️", "🌍"]
+#     #     for element, item in enumerate(pick_from):
+#     #         col = db.get_database("crafts").get_collection(item)
+#     #         col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
+#     #     last_depth_count = {0: 4, 1: 0}
+#     # if last_depth_count == {0: 4}:
+#     #     last_depth_count = {0: 4, 1: 0}
+#     if current_depth is None:
+#         current_depth = max(last_depth_count.keys(), default=1)
+#     if last_depth_count == {}:
+#         last_depth_count = {0: 4, 1: 0}
+#     print(current_depth, last_depth_count)
+#
+#     select_from = []
+#     sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
+#     total_crafts = int(combinatorial(sum_of_total) - combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
+#     log.info(f"generating combinations for depth {current_depth} (total crafts: {total_crafts})")
+#     depth_cache = {}
+#     combin = generate_combinations_new(current_depth)
+#     log.info("task done")
+#     s = Scheduler(combin, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian",
+#                   max_workers=args.workers,
+#                   log_level=global_log_level)
+#     s_thread = ImprovedThread(target=s.run, daemon=True)
+#
+#     s_thread.start()
+#     while s_thread.is_alive():
+#         time.sleep(1)
+#         check_mongodb_connection(db)
+#         completed_crafts = s.progress["completed"] + s.progress["skipped"]
+#         slept += 1
+#         alive = 0
+#         for proxy in proxies:
+#             if proxy.disabled_until == 0:
+#                 alive += 1
+#         if alive / len(proxies) < 0.1:  # If 90% of proxies die, regenerate them
+#             do_proxy_stuff()
+#             s.proxies = proxies
+#             log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
+#         if slept % 600 == 0 and push_to_github:
+#             update_librarian(push=True)
+#
+#     current_depth += 1
