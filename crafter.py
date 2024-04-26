@@ -1,4 +1,3 @@
-import itertools
 import json
 import time
 import pymongo
@@ -8,8 +7,7 @@ import argparse
 import librarian
 from crafterbackend.Proxy import Proxy
 from crafterbackend.Scheduler import Scheduler
-from crafterbackend.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread,
-                                  get_depth_of)
+from crafterbackend.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread)
 
 CONNECTION_STRING = "mongodb://192.168.1.143:27017"
 
@@ -148,24 +146,6 @@ def combinatorial(x: int):
     return ((x * (x-1)) / 2) + x
 
 
-def generate_combinations(elements: list[str], depth: int):
-    try:
-        elements.remove("Nothing")  # Remove null case
-    except ValueError:
-        pass
-    for craft in itertools.combinations_with_replacement(elements, 2):
-        while True:
-            try:
-                depth_0 = get_depth_of(craft[0], db)
-                depth_1 = get_depth_of(craft[1], db)
-            except (NetworkTimeout, ServerSelectionTimeoutError, AutoReconnect, ConnectionFailure):
-                check_mongodb_connection(db)
-                continue
-            break
-        if (depth_0 == depth or depth_1 == depth) and (depth_1 <= depth and depth_0 <= depth):
-            yield craft, depth_0, depth_1
-
-
 def generate_combinations_new(depth: int):
     this_depthfile = open(f"data/depth/{depth-1}")
     for fe_index, first_element in enumerate(this_depthfile):
@@ -181,52 +161,44 @@ def generate_combinations_new(depth: int):
     this_depthfile.close()
 
 
-while True:
-    # pick_from = get_db_elements()
-    update_librarian(push=False)
+if __name__ == "__main__":
+    while True:
+        # pick_from = get_db_elements()
+        update_librarian(push=False)
 
-    # if len(pick_from) == 0:
-    #     pick_from = ["Fire", "Water", "Wind", "Earth"]
-    #     emojis = ["🔥", "💧", "🌬️", "🌍"]
-    #     for element, item in enumerate(pick_from):
-    #         col = db.get_database("crafts").get_collection(item)
-    #         col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
-    #     last_depth_count = {0: 4, 1: 0}
-    # if last_depth_count == {0: 4}:
-    #     last_depth_count = {0: 4, 1: 0}
-    if current_depth is None:
-        current_depth = max(last_depth_count.keys(), default=1)
-    if last_depth_count == {}:
-        last_depth_count = {0: 4, 1: 0}
-    print(current_depth, last_depth_count)
+        if current_depth is None:
+            current_depth = max(last_depth_count.keys(), default=1)
+        if last_depth_count == {}:
+            last_depth_count = {0: 4, 1: 0}
+        print(current_depth, last_depth_count)
 
-    select_from = []
-    sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
-    total_crafts = int(combinatorial(sum_of_total) - combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
-    log.info(f"generating combinations for depth {current_depth} (total crafts: {total_crafts})")
-    depth_cache = {}
-    combin = generate_combinations_new(current_depth)
-    log.info("task done")
-    s = Scheduler(combin, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian",
-                  max_workers=args.workers,
-                  log_level=global_log_level)
-    s_thread = ImprovedThread(target=s.run, daemon=True)
+        select_from = []
+        sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
+        total_crafts = int(combinatorial(sum_of_total) - combinatorial(sum_of_total - last_depth_count[current_depth - 1]))
+        log.info(f"generating combinations for depth {current_depth} (total crafts: {total_crafts})")
+        depth_cache = {}
+        combin = generate_combinations_new(current_depth)
+        log.info("task done")
+        s = Scheduler(combin, total_crafts, proxies, mongo_connection_string=CONNECTION_STRING, name="Julian",
+                      max_workers=args.workers,
+                      log_level=global_log_level)
+        s_thread = ImprovedThread(target=s.run, daemon=True)
 
-    s_thread.start()
-    while s_thread.is_alive():
-        time.sleep(1)
-        check_mongodb_connection(db)
-        completed_crafts = s.progress["completed"] + s.progress["skipped"]
-        slept += 1
-        alive = 0
-        for proxy in proxies:
-            if proxy.disabled_until == 0:
-                alive += 1
-        if alive / len(proxies) < 0.1:  # If 90% of proxies die, regenerate them
-            do_proxy_stuff()
-            s.proxies = proxies
-            log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
-        if slept % 600 == 0 and push_to_github:
-            update_librarian(push=True)
+        s_thread.start()
+        while s_thread.is_alive():
+            time.sleep(1)
+            check_mongodb_connection(db)
+            completed_crafts = s.progress["completed"] + s.progress["skipped"]
+            slept += 1
+            alive = 0
+            for proxy in proxies:
+                if proxy.disabled_until == 0:
+                    alive += 1
+            if alive / len(proxies) < 0.1:  # If 90% of proxies die, regenerate them
+                do_proxy_stuff()
+                s.proxies = proxies
+                log.warning(f"Proxies have been regenerated ({alive} alive out of {len(proxies)} proxies)")
+            if slept % 600 == 0 and push_to_github:
+                update_librarian(push=True)
 
-    current_depth += 1
+        current_depth += 1
