@@ -167,33 +167,37 @@ def generate_combinations(elements: list[str], depth: int):
 
 
 def generate_combinations_new(new_depth: int):
-    this_depthfile = open(f"data/depth/{new_depth - 1}")
-    for prev_depth in range(new_depth - 1):
-        older_depthfile = open(f"data/depth/{prev_depth}")
-        for l1 in older_depthfile:
+    try:
+        this_depthfile = open(f"data/depth/{new_depth - 1}")
+        for prev_depth in range(new_depth - 1):
+            older_depthfile = open(f"data/depth/{prev_depth}")
+            for l1 in older_depthfile:
+                e1 = l1[:-1]
+                for l2 in this_depthfile:
+                    e2 = l2[:-1]
+                    yield (e1, e2), prev_depth, new_depth - 1
+                this_depthfile.seek(0)
+                    # print(first_element, second_element, depth-1, previous_depth)
+                    # yield (first_element[:-1], second_element[:-1]), depth-1, previous_depth
+            older_depthfile.close()
+
+        # this_depthfile pointer should already be reset from previous loop
+        while True:
+            l1 = this_depthfile.readline()
+            if len(l1) == 0:
+                break  # Reached EOF
+            fp_loc = this_depthfile.tell()  # Save file pointer location to come back to
             e1 = l1[:-1]
-            for l2 in this_depthfile:
+            yield (e1, e1), new_depth - 1, new_depth - 1
+            for l2 in this_depthfile:  # Abuse file pointer to only loop through the succeeding elements
                 e2 = l2[:-1]
-                yield (e1, e2), prev_depth, new_depth - 1
-            this_depthfile.seek(0)
-                # print(first_element, second_element, depth-1, previous_depth)
-                # yield (first_element[:-1], second_element[:-1]), depth-1, previous_depth
-        older_depthfile.close()
+                yield (e1, e2), new_depth - 1, new_depth - 1
+            this_depthfile.seek(fp_loc)  # Reset file pointer to where we started
 
-    # this_depthfile pointer should already be reset from previous loop
-    while True:
-        l1 = this_depthfile.readline()
-        if len(l1) == 0:
-            break  # Reached EOF
-        fp_loc = this_depthfile.tell()  # Save file pointer location to come back to
-        e1 = l1[:-1]
-        yield (e1, e1), new_depth - 1, new_depth - 1
-        for l2 in this_depthfile:  # Abuse file pointer to only loop through the succeeding elements
-            e2 = l2[:-1]
-            yield (e1, e2), new_depth - 1, new_depth - 1
-        this_depthfile.seek(fp_loc)  # Reset file pointer to where we started
-
-    this_depthfile.close()
+        this_depthfile.close()
+    except FileNotFoundError:
+        raise ValueError(f"Cannot calculate combinations for depth {new_depth}. "
+                         f"Do not have elements of previous depths")
 
 
 # while True:
