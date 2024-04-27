@@ -137,6 +137,7 @@ class Worker:
                                   f" is starting with craft {current_craft[0]}...")
 
                 # Check if we can be lazy and skip the craft.
+                check = False
                 while True:
                     try:
                         check = check_craft_exists_db(current_craft[0], self.db, return_craft_data=True)

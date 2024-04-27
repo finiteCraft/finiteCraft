@@ -1,4 +1,4 @@
-import json
+import ujson
 import os
 import logging
 import requests
@@ -11,9 +11,10 @@ LOCAL_DB_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/../api"
 repo = Repo(f"{LOCAL_DB_PATH}/.git")
 DB_URL = "https://raw.githubusercontent.com/FiniteCraft/api/master/"
 DATA_TYPES = ["display", "search"]
-CHUNK_CAPACITY = 1000    # The max size of a chunk
-CACHE_CAPACITY = 100      # The max number of chunks allowed to be simultaneously loaded
+CHUNK_CAPACITY = 1000  # The max size of a chunk
+CACHE_CAPACITY = 100  # The max number of chunks allowed to be simultaneously loaded
 DEFAULT_NUM_CHUNKS = 64  # The initial number of chunks in the database
+
 
 class Chunk:
     def __init__(self, hsh: int, data_type: str, data: dict):
@@ -44,7 +45,7 @@ def cache_pop():
         path = f"{LOCAL_DB_PATH}/{chunk.data_type}"
         os.makedirs(path, exist_ok=True)
         with open(f"{path}/{chunk.hsh}.json", "w") as fp:
-            json.dump(chunk.data, fp)
+            ujson.dump(chunk.data, fp)
         log.debug(f"File {path}/{chunk.hsh}.json dumped.")
     del chunk
 
@@ -77,13 +78,13 @@ def init(log_level):
 
     if os.path.exists(f"{LOCAL_DB_PATH}/settings.json"):
         with open(f"{LOCAL_DB_PATH}/settings.json", "r") as sp:
-            settings = json.load(sp)
+            settings = ujson.load(sp)
             num_chunks = settings["num_chunks"]
     else:
         num_chunks = DEFAULT_NUM_CHUNKS
         with open(f"{LOCAL_DB_PATH}/settings.json", "w") as sp:
             settings = {"num_chunks": DEFAULT_NUM_CHUNKS}
-            json.dump(settings, sp)
+            ujson.dump(settings, sp)
     chunk_map = {dt: [None for _ in range(num_chunks)] for dt in DATA_TYPES}
 
 
@@ -141,13 +142,13 @@ def rehash(new_num_chunks):
                 continue
 
             fp = open(f"{LOCAL_DB_PATH}/{t}/{f}")
-            old_chunk = json.load(fp)
+            old_chunk = ujson.load(fp)
 
             for key in old_chunk:
                 ch = chunk_hash(key)
                 if os.path.exists(f"{LOCAL_DB_PATH}/temp/{t}/{ch}.json"):
                     nfp = open(f"{LOCAL_DB_PATH}/temp/{t}/{ch}.json", "r")
-                    new_chunk = json.load(nfp)
+                    new_chunk = ujson.load(nfp)
                     nfp.close()
                 else:
                     new_chunk = dict()
@@ -155,7 +156,7 @@ def rehash(new_num_chunks):
                 new_chunk[key] = old_chunk[key]
 
                 nfp = open(f"{LOCAL_DB_PATH}/temp/{t}/{ch}.json", "w")
-                json.dump(new_chunk, nfp)
+                ujson.dump(new_chunk, nfp)
                 nfp.close()
 
             fp.close()
@@ -172,11 +173,11 @@ def rehash(new_num_chunks):
     # Update database num_chunks
     log.debug("Updating settings.json...")
     sp = open(f"{LOCAL_DB_PATH}/settings.json", "r")
-    settings = json.load(sp)
+    settings = ujson.load(sp)
     sp.close()
     sp = open(f"{LOCAL_DB_PATH}/settings.json", "w")
     settings["num_chunks"] = num_chunks
-    json.dump(settings, sp)
+    ujson.dump(settings, sp)
     sp.close()
 
 
@@ -193,7 +194,7 @@ def ensure_capacity():
 
     for f in files:
         fp = open(f"{LOCAL_DB_PATH}/display/{f}")
-        data = json.load(fp)
+        data = ujson.load(fp)
         if len(data) > CHUNK_CAPACITY:
             log.debug(f"Max capacity reached in file {f}. Rehashing...")
             fp.close()
@@ -252,7 +253,7 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> C
     if local:  # Searching in local database
         if os.path.exists(f"{LOCAL_DB_PATH}/{rel_path}"):
             with open(f"{LOCAL_DB_PATH}/{rel_path}") as fp:
-                data = json.load(fp)
+                data = ujson.load(fp)
         elif create_new:
             data = {}
         else:
@@ -261,7 +262,7 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> C
     else:  # Searching in remote database
         response = SESSION.get(f"{DB_URL}/{rel_path}")
         if response.status_code != 404:
-            data = json.loads(response.content)
+            data = ujson.loads(response.content)
         elif create_new:
             log.debug(f"Chunk {ch} (data type={data_type}) does not exist! Creating new chunk...")
             data = {}
@@ -270,7 +271,7 @@ def load_chunk(ch: int, data_type="display", create_new=False, local=False) -> C
 
     chunk = Chunk(ch, data_type, data)
     chunk_map[data_type][ch] = chunk  # Save the chunk here
-    cache.append(chunk)    # Still add it to queue to keep track of order added
+    cache.append(chunk)  # Still add it to queue to keep track of order added
     log.debug(f"Chunk {ch} (data type={data_type}) successfully loaded!")
     return chunk
 
@@ -331,4 +332,3 @@ if __name__ == "__main__":
     cache_clear()
     for chunk in cache:
         print(chunk)
-

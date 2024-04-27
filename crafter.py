@@ -1,4 +1,4 @@
-import json
+import ujson
 import os
 import shutil
 import time
@@ -30,8 +30,6 @@ parser.add_argument("-p", "--push-delay", help="The delay between pushing to Git
 log_levels = ["debug", "info", "warning", "error", "critical"]
 parser.add_argument("-l", "--log-level", help="The log level to use for the program.", choices=log_levels,
                     default="info")
-
-
 
 transcode_log_levels = {"debug": logging.DEBUG, "info": logging.INFO, "warning": logging.WARNING,
                         "error": logging.ERROR,
@@ -99,7 +97,7 @@ def update_librarian(push=True):
 
     stats = {"unique": len(raw_database),
              "mongodb": db["crafts"].command("dbstats")}  # Stats
-    json.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
+    ujson.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
 
     for i, element_key in enumerate(raw_database):  # Organize data for librarian
         data = raw_database[element_key]
@@ -127,7 +125,7 @@ def update_librarian(push=True):
     librarian.cache_clear()
     if push:
         librarian.update_remote()
-    log.info(f"Done running update_librarian (push={push}, elapsed={round(time.time()-start, 2)})")
+    log.info(f"Done running update_librarian (push={push}, elapsed={round(time.time() - start, 2)})")
 
 
 def prepare_proxies():
@@ -163,7 +161,7 @@ def combinatorial(x: int):
     """
     Generate a combinatorial number for a given depth. This formula works like xP2 + x (combinatorial pick).
     """
-    return ((x * (x-1)) / 2) + x
+    return ((x * (x - 1)) / 2) + x
 
 
 def generate_combinations(new_depth: int):
@@ -238,7 +236,7 @@ if __name__ == "__main__":  # Mainloop
         s_thread = ImprovedThread(target=s.run, daemon=True)  # Run the scheduler
         s_thread.start()
 
-        while s_thread.is_alive(): # Just kinda sit here until the thread is done
+        while s_thread.is_alive():  # Just kinda sit here until the thread is done
 
             time.sleep(1)
             wait_for_mongodb_connection(db)

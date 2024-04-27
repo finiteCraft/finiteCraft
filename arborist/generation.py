@@ -81,8 +81,8 @@ def compare_trees(tree1: dict[str, tuple[str, str] | None], tree2: dict[str, tup
 
 
 def h_smallest_tree_bp(working_tree: dict[str: tuple[str, str] | None],
-                                  leaves: deque[str],
-                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                       leaves: deque[str],
+                       smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method BP (Basic Pruning)
     ---
@@ -135,9 +135,10 @@ def h_smallest_tree_bp(working_tree: dict[str: tuple[str, str] | None],
     working_tree.pop(leaf)
     return smallest
 
+
 def h_smallest_tree_ld(working_tree: dict[str: tuple[str, str] | None],
-                                  leaves: deque[str],
-                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                       leaves: deque[str],
+                       smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method LD (Leaf Depth)
     ---
@@ -199,10 +200,13 @@ def h_smallest_tree_ld(working_tree: dict[str: tuple[str, str] | None],
     working_tree.pop(leaf)
     return smallest
 
+
 dc1_root_depth = -1
+
+
 def h_smallest_tree_dc1(working_tree: dict[str: tuple[str, str] | None],
-                                  leaves: deque[str],
-                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                        leaves: deque[str],
+                        smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method DC1 (Depth Cap 1)
     ---
@@ -227,7 +231,6 @@ def h_smallest_tree_dc1(working_tree: dict[str: tuple[str, str] | None],
         log.debug("DC1 optimization utilized")
         leaves.clear()
         return smallest  # There's no way this tree is gonna be smaller, prune this branch
-
 
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
     if len(smallest) and max(len(working_tree), leaf_depth + 1) > len(smallest):
@@ -273,8 +276,8 @@ def h_smallest_tree_dc1(working_tree: dict[str: tuple[str, str] | None],
 
 
 def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
-                                  leaves: deque[str],
-                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                        leaves: deque[str],
+                        smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method DC2 (Depth Cap 2)
     ---
@@ -326,7 +329,7 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
         ing1 = recipe[0]
         ing2 = recipe[1]
         if (librarian.query_data(ing1, "search")["depth"] >= depth_thresh or
-            librarian.query_data(ing2, "search")["depth"] >= depth_thresh):
+                librarian.query_data(ing2, "search")["depth"] >= depth_thresh):
             log.debug(f"DC2 optimization utililzed! {leaf} = {ing1} + {ing2}")
             continue
 
@@ -347,8 +350,8 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
 
 
 def h_smallest_tree_dc3(working_tree: dict[str: tuple[str, str] | None],
-                                  leaves: deque[str],
-                                  smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                        leaves: deque[str],
+                        smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method DC3 (Depth Cap 3)
     ---
@@ -399,7 +402,7 @@ def h_smallest_tree_dc3(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     # Otherwise, try all recipes for this item
-    recipes = get_pre_recipes_for(leaf) # DC3 optimization
+    recipes = get_pre_recipes_for(leaf)  # DC3 optimization
     for i, recipe in enumerate(recipes):  # For every recipe...
         ing1 = recipe[0]
         ing2 = recipe[1]
@@ -421,8 +424,8 @@ def h_smallest_tree_dc3(working_tree: dict[str: tuple[str, str] | None],
 
 
 def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
-                        leaves: deque[tuple[str, str]],
-                        smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+                         leaves: deque[tuple[str, str]],
+                         smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
     """
     Method DC3b (Depth Cap 3)
     ---
@@ -490,8 +493,6 @@ def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
     # Remove the leaf from tree
     working_tree.pop(leaf)
     return smallest
-
-
 
 
 def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:

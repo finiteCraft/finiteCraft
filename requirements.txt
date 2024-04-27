@@ -1,9 +1,10 @@
-requests
-pysocks
-fake-useragent
-beautifulsoup4
-ndg-httpsclient
-pyopenssl
-pyasn1
-pymongo
-gitpython
+requests  # Enables the webscraper itself to work
+pysocks  # Enables proxy support
+fake-useragent  # Fake user agents to confuse Neal
+ndg-httpsclient  # requests requirement
+pyopenssl  # requests requirement
+pyasn1  # requests
+pymongo  # database operations
+gitpython  # push to API repo
+ujson  # Speedy json for librarian
+urllib3  # Another requests dep
