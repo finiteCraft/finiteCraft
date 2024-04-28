@@ -66,7 +66,7 @@ def get_db_elements():
     return cols
 
 
-librarian.init(log_level=global_log_level)  # Initialize Librarian with our log level
+librarian.set_logging(log_level=global_log_level)  # Initialize Librarian with our log level
 
 proxies: list[Proxy] = []  # A list of all of the Proxies currently being used
 last_depth_count = {}  # A dictionary of the format {<depth>: <number of elements in database with that depth>}.

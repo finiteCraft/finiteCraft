@@ -1,6 +1,8 @@
 import ujson
 import os
 import logging
+from collections.abc import Callable
+
 import requests
 from git import Repo
 import shutil
@@ -68,11 +70,11 @@ def cache_get(hsh: int, data_type: str) -> Chunk | None:
     """
     return chunk_map[data_type][hsh]
 
-
 def init(log_level):
     """Initializes the librarian settings and updates the local database."""
     global chunk_map
     global num_chunks
+    global DATATYPES
     log.setLevel(log_level)
     update_local()
 
@@ -80,6 +82,8 @@ def init(log_level):
         with open(f"{LOCAL_DB_PATH}/settings.json", "r") as sp:
             settings = ujson.load(sp)
             num_chunks = settings["num_chunks"]
+            DATATYPES = settings["datatypes"]
+
     else:
         num_chunks = DEFAULT_NUM_CHUNKS
         with open(f"{LOCAL_DB_PATH}/settings.json", "w") as sp:
@@ -93,7 +97,7 @@ def remove_directories():
     Remove the directory (used to reset git)
     :return:
     """
-    for dir_name in DATA_TYPES:
+    for dir_name in DATATYPES:
         if os.path.exists(LOCAL_DB_PATH + "/" + dir_name):
             shutil.rmtree(LOCAL_DB_PATH + "/" + dir_name)
 
@@ -125,7 +129,7 @@ def rehash(new_num_chunks):
 
     # Create temporary storage
     log.debug(f"Creating temp dir...")
-    for t in DATA_TYPES:
+    for t in DATATYPES:
         os.makedirs(f"{LOCAL_DB_PATH}/temp/{t}", exist_ok=True)
 
     if os.path.exists(f"{LOCAL_DB_PATH}/display"):
@@ -133,11 +137,11 @@ def rehash(new_num_chunks):
     else:
         files = []
     num_chunks = new_num_chunks
-    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in DATA_TYPES}
+    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in DATATYPES}
 
     for f in files:
         log.debug(f"Rehashing file: {f}")
-        for t in DATA_TYPES:
+        for t in DATATYPES:
             if not os.path.exists(f"{LOCAL_DB_PATH}/{t}/{f}"):
                 continue
 
@@ -164,7 +168,7 @@ def rehash(new_num_chunks):
     log.debug("Removing old files...")
     remove_directories()
     log.debug("Moving new files out of temp dir...")
-    for t in DATA_TYPES:
+    for t in DATATYPES:
         shutil.move(f"{LOCAL_DB_PATH}/temp/{t}", f"{LOCAL_DB_PATH}/{t}")
 
     log.debug("Removing temp dir...")
@@ -204,6 +208,8 @@ def ensure_capacity():
         fp.close()
     return False
 
+
+# region User Functions
 
 def update_remote():
     """Pushes the library data to the online database"""
@@ -316,6 +322,18 @@ def store_data(key: str, data: dict, data_type="display") -> bool:
 
     return new_key
 
+# endregion
+
+
+def declare_new_datatype(datatype: str, components: list[str]):
+    if datatype in DATATYPES:
+        raise ValueError(f"Datatype \"{datatype}\" already exists.")
+
+    DATATYPES[datatype] = components
+
+def map_data(old_datatype: str, new_datatype: str, mapping: Callable[[dict], dict]):
+    pass
+
 
 # Name of element -> run some hashing function on it -> compression function ->
 # chunk id -> load the chunk -> use the name of element to query the chunk dict
@@ -323,8 +341,7 @@ def store_data(key: str, data: dict, data_type="display") -> bool:
 
 if __name__ == "__main__":
     logging.basicConfig()
-    log.setLevel(logging.DEBUG)
-    init()
+    init(logging.DEBUG)
     print(query_data("Stone", "search"))
     print(query_data("Lava", "display"))
     for chunk in cache:

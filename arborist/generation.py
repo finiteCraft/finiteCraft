@@ -495,6 +495,85 @@ def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
     return smallest
 
 
+def h_smallest_tree_kma1(working_tree: dict[str: tuple[str, str] | None],
+                        leaves: deque[tuple[str, str]],
+                        smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
+    """
+    Method KMA1 (Killer Move Adaptation 1)
+    ---
+    The name comes from strategy used in Chess Bots which employ
+    Alpha-Beta pruning. The idea is that if a move (or in this case a recipe)
+    was very good in a shallower depth, it's likely to also be good in this depth,
+    so we try searching it first to hopefully cause more early pruning.
+    Adapting this to InfiniteCraft, if we know the shortest crafting tree for
+    some intermediate element A, and we know that its shortest crafting tree
+    involves combining B and C to get A, then we'll prioritize searching the
+    overall possibility tree with the B+C recipe. Note that this lookup
+    will be different for each intermediate element. There are plans
+    to make this slightly more intelligent in the future.
+    """
+    raise NotImplementedError()  # TODO: Finish this
+
+    # log.debug(f"Working Tree - {working_tree}")
+    if not len(leaves):  # Have we completed a tree?
+        # yes, compare against current smallest
+        if len(smallest) == 0 or compare_trees(working_tree, smallest) < 0:
+            log.info(f"Found new smallest tree: {working_tree}")
+            return deepcopy(working_tree)
+        return smallest
+
+    coming_from, leaf = leaves.popleft()
+    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+
+    # PRUNING BLOCK
+    # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
+    if len(smallest) and max(len(working_tree), leaf_depth + 1) > len(smallest):
+        if leaf_depth + 1 > len(smallest) >= len(working_tree):  # Notify when leaf_depth was the cause of pruning
+            log.debug("LD optimization utilized!")
+        log.debug(f"Pruned Branch! Breadcrumb count: {len(working_tree)}")
+        leaves.clear()
+        return smallest  # There's no way this tree is gonna be smaller, prune this branch
+    # END PRUNING BLOCK
+
+    # Is the element already a part of the tree?
+    # AKA has it already been crafted?
+    if leaf in working_tree:
+        return h_smallest_tree_dc3b(working_tree, leaves, smallest)
+
+    # Initialize leaf in tree
+    working_tree[leaf] = None
+
+    # Does this element need to be crafted?
+    if leaf in GIVEN_ELEMENTS:
+        # If not, just move on
+        smallest = h_smallest_tree_dc3b(working_tree, leaves, smallest)
+        working_tree.pop(leaf)  # Make sure to remove from the tree at the end
+        return smallest
+
+    # Otherwise, try all recipes for this item
+    recipes = get_pre_recipes_for(leaf)  # DC3 optimization
+    for i, recipe in enumerate(recipes):  # For every recipe...
+        ing1 = recipe[0]
+        ing2 = recipe[1]
+
+        if ing1 == coming_from or ing2 == coming_from:  # DC3b Optimization
+            continue  # Basic check for infinite loops
+
+        working_tree[leaf] = (ing1, ing2)  # Load recipe
+        log.debug(f"Using recipe {i + 1}/{len(recipes)} for {leaf} on tree {working_tree}")
+        # then queue any new leaves
+        # (duplicates get filtered out above code)
+        leaves.append((leaf, ing1))
+        leaves.append((leaf, ing2))
+
+        # Run the helper on the expanded tree.
+        # leaves will automatically clear themselves from the queue
+        smallest = h_smallest_tree_dc3b(working_tree, leaves, smallest)
+
+    # Remove the leaf from tree
+    working_tree.pop(leaf)
+    return smallest
+
 def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
     """
     Returns the smallest crafting tree for the given element.
@@ -517,7 +596,7 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
 
 
 if __name__ == "__main__":
-    librarian.init()
+    librarian.set_logging(logging.DEBUG)
 
     print(get_pre_recipes_for("Wave"))
     print(get_pre_recipes_for("Stone"))
