@@ -23,7 +23,6 @@ def get_recipes_for(element: str) -> list[tuple[str, str]]:
 
 
 def get_pre_recipes_for(element: str) -> list[tuple[str, str]]:
-    # return RECIPES[element]
     d = librarian.query_data(element, "search")
     if d is None:
         return []
@@ -202,8 +201,6 @@ def h_smallest_tree_ld(working_tree: dict[str: tuple[str, str] | None],
 
 
 dc1_root_depth = -1
-
-
 def h_smallest_tree_dc1(working_tree: dict[str: tuple[str, str] | None],
                         leaves: deque[str],
                         smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
@@ -495,6 +492,25 @@ def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
     return smallest
 
 
+def get_recipes_kma(element: str) -> list[tuple[str, str]]:
+    d = librarian.query_data(element, "kma")
+    if d is None:
+        return []
+    recipes: list[tuple[str, str]] = d["pre"]
+
+    # KMA Optimization
+    # Order the recipes we check so that,
+    # if we've computed the shortest tree for this element,
+    # we prioritize that recipe, since that's likely to be good.
+    if len(d["smallest_tree"]):
+        log.info("KMA Optimization")
+        first_recipe = d["smallest_tree"][element]
+        recipes.remove(first_recipe)
+        recipes.insert(0, first_recipe)
+
+    return recipes
+
+
 def h_smallest_tree_kma1(working_tree: dict[str: tuple[str, str] | None],
                         leaves: deque[tuple[str, str]],
                         smallest: dict[str, tuple[str, str] | None]) -> dict[str, tuple[str, str] | None]:
@@ -512,8 +528,6 @@ def h_smallest_tree_kma1(working_tree: dict[str: tuple[str, str] | None],
     will be different for each intermediate element. There are plans
     to make this slightly more intelligent in the future.
     """
-    raise NotImplementedError()  # TODO: Finish this
-
     # log.debug(f"Working Tree - {working_tree}")
     if not len(leaves):  # Have we completed a tree?
         # yes, compare against current smallest
@@ -551,7 +565,7 @@ def h_smallest_tree_kma1(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     # Otherwise, try all recipes for this item
-    recipes = get_pre_recipes_for(leaf)  # DC3 optimization
+    recipes = get_recipes_kma(leaf)  # KMA Optimization. See function for more details
     for i, recipe in enumerate(recipes):  # For every recipe...
         ing1 = recipe[0]
         ing2 = recipe[1]
@@ -595,8 +609,30 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
     return tree
 
 
+def smallest_tree_kma(target_element: str) -> dict[str, tuple[str, str]]:
+    log.info("Starting tree search")
+    nibble = librarian.query_data(target_element, "kma")
+    if len(nibble["smallest_tree"]):
+        log.info("Tree already computed")
+        return nibble["smallest_tree"].copy()
+
+    working_tree = {}
+    leaves = deque()
+    leaves.append(('', target_element))
+    smallest = {}
+    tree = h_smallest_tree_kma1(working_tree, leaves, smallest)
+    nibble["smallest_tree"] = tree
+    librarian.store_data(target_element, nibble.to_json(), "kma")
+    librarian.cache_clear()
+    librarian.update_remote()
+    log.info("Tree Search Complete")
+    return tree
+
+
 if __name__ == "__main__":
     librarian.set_logging(logging.DEBUG)
+    librarian.update_local()
+    librarian.update_remote()
 
     print(get_pre_recipes_for("Wave"))
     print(get_pre_recipes_for("Stone"))
@@ -610,4 +646,9 @@ if __name__ == "__main__":
     start = time.time_ns()
     # time.sleep(0.5)
     print(smallest_tree("Stone"))
-    print(f"Smallest took {(time.time_ns() - start) / 1e9} s")
+    print(f"DC3B took {(time.time_ns() - start) / 1e9} s")
+
+    start = time.time_ns()
+    # time.sleep(0.5)
+    print(smallest_tree_kma("Stone"))
+    print(f"KMA took {(time.time_ns() - start) / 1e9} s")

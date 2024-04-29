@@ -8,7 +8,7 @@ from git import Repo
 import shutil
 from collections import deque
 
-import librarian.structures as lib_struct
+import librarian.structures as struct
 
 if "H_LIB" not in globals():
     H_LIB = None  # Header tag to keep from re-initializing the data on successive imports
@@ -33,27 +33,27 @@ if "H_LIB" not in globals():
     CACHE_CAPACITY = 100     # The max number of chunks allowed to be simultaneously loaded
     DEFAULT_NUM_CHUNKS = 64  # Default number of chunks in the library
 
-    chunk_map: dict[str, list[lib_struct.Chunk | None]] = {}  # A dictionary-array containing pointers to all loaded chunks
+    chunk_map: dict[str, list[struct.Chunk | None]] = {}  # A dictionary-array containing pointers to all loaded chunks
     num_chunks: int = 0  # Number of chunks in the database
-    cache: deque[lib_struct.Chunk] = deque()  # A queue of the loaded chunks. Used to keep track of order added
+    cache: deque[struct.Chunk] = deque()  # A queue of the loaded chunks. Used to keep track of order added
 
     # region Load the data from settings.json
     if os.path.exists(f"{LOCAL_DB_PATH}/settings.json"):
         with open(f"{LOCAL_DB_PATH}/settings.json", "r") as sp:
             settings = ujson.load(sp)
             num_chunks = settings["num_chunks"]
-            lib_struct.DATATYPES = {dt: set(attr) for dt, attr in settings["datatypes"].items()}
+            struct.DATATYPES = {dt: set(attr) for dt, attr in settings["datatypes"].items()}
 
     else:
         num_chunks = DEFAULT_NUM_CHUNKS
-        lib_struct.DATATYPES = {}
+        struct.DATATYPES = {}
         with open(f"{LOCAL_DB_PATH}/settings.json", "w") as sp:
             settings = {"num_chunks": DEFAULT_NUM_CHUNKS, "datatypes": {}}
             ujson.dump(settings, sp)
     # endregion
 
     # Initialize the chunk map
-    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in lib_struct.DATATYPES}
+    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in struct.DATATYPES}
 
     LOG.info("Loaded Librarian.")
 
@@ -68,7 +68,7 @@ def save_settings():
     LOG.debug("Saving settings...")
     with open(f"{LOCAL_DB_PATH}/settings.json", "w") as sp:
 
-        settings = {"num_chunks": num_chunks, "datatypes": {dt: list(attr) for dt, attr in lib_struct.DATATYPES.items()}}
+        settings = {"num_chunks": num_chunks, "datatypes": {dt: list(attr) for dt, attr in struct.DATATYPES.items()}}
         ujson.dump(settings, sp, indent=4)
     LOG.debug("Settings saved.")
 
@@ -79,7 +79,7 @@ def remove_directories():
     :return:
     """
     LOG.debug("Clearing directories, say goodbye lol")
-    for dir_name in lib_struct.DATATYPES:
+    for dir_name in struct.DATATYPES:
         if os.path.exists(LOCAL_DB_PATH + "/" + dir_name):
             shutil.rmtree(LOCAL_DB_PATH + "/" + dir_name)
             
@@ -98,7 +98,7 @@ def chunk_hash(key: str, nc: int | None = None) -> int:
     return code % nc
 
 
-def load_chunk(ch: int, datatype="display", create_new=False, local=False) -> lib_struct.Chunk:
+def load_chunk(ch: int, datatype="display", create_new=False, local=False) -> struct.Chunk:
     """
     Loads the chunk with the given chunk hash into the cache.
     Raises an IndexError if chunk does not exist.
@@ -136,7 +136,7 @@ def load_chunk(ch: int, datatype="display", create_new=False, local=False) -> li
         else:
             raise IndexError(f"Attempted to access non-existent chunk: {datatype}/{ch}.json")
 
-    chunk = lib_struct.Chunk(ch, datatype, data)
+    chunk = struct.Chunk(ch, datatype, {tag: struct.dict_to_nibble(d, tag, datatype) for tag, d in data.items()})
     chunk_map[datatype][ch] = chunk  # Save the chunk here
     cache.append(chunk)    # Still add it to queue to keep track of order added
     LOG.debug(f"lib_struct.Chunk {ch} (data type={datatype}) successfully loaded!")
@@ -156,19 +156,19 @@ def rehash(new_num_chunks):
 
     # Create temporary storage
     LOG.debug(f"Creating temp dir...")
-    for t in lib_struct.DATATYPES:
+    for t in struct.DATATYPES:
         os.makedirs(f"{LOCAL_DB_PATH}/temp/{t}", exist_ok=True)
 
-    if len(lib_struct.DATATYPES) and os.path.exists(f"{LOCAL_DB_PATH}/{list(lib_struct.DATATYPES.keys())[0]}"):
-        files = os.listdir(f"{LOCAL_DB_PATH}/{list(lib_struct.DATATYPES.keys())[0]}")  # get all existing files
+    if len(struct.DATATYPES) and os.path.exists(f"{LOCAL_DB_PATH}/{list(struct.DATATYPES.keys())[0]}"):
+        files = os.listdir(f"{LOCAL_DB_PATH}/{list(struct.DATATYPES.keys())[0]}")  # get all existing files
     else:
         files = []
     num_chunks = new_num_chunks
-    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in lib_struct.DATATYPES}
+    chunk_map = {dt: [None for _ in range(num_chunks)] for dt in struct.DATATYPES}
 
     for f in files:
         LOG.debug(f"Rehashing file: {f}")
-        for t in lib_struct.DATATYPES:
+        for t in struct.DATATYPES:
             if not os.path.exists(f"{LOCAL_DB_PATH}/{t}/{f}"):
                 continue
 
@@ -195,7 +195,7 @@ def rehash(new_num_chunks):
     LOG.debug("Removing old files...")
     remove_directories()
     LOG.debug("Moving new files out of temp dir...")
-    for t in lib_struct.DATATYPES:
+    for t in struct.DATATYPES:
         shutil.move(f"{LOCAL_DB_PATH}/temp/{t}", f"{LOCAL_DB_PATH}/{t}")
 
     LOG.debug("Removing temp dir...")
@@ -260,15 +260,15 @@ def update_local():
 # region Datatype Interaction
 
 def get_datatypes() -> dict[str, set[str]]:
-    return lib_struct.DATATYPES
+    return struct.DATATYPES
 
 
 def declare_new_datatype(datatype: str, attributes: set[str]):
     """Declares a new datatype for use. Give a set of attributes for it to have."""
-    if datatype in lib_struct.DATATYPES:
+    if datatype in struct.DATATYPES:
         raise ValueError(f"Datatype \"{datatype}\" already exists")
 
-    lib_struct.DATATYPES[datatype] = attributes.copy()
+    struct.DATATYPES[datatype] = attributes.copy()
     os.makedirs(f"{LOCAL_DB_PATH}/{datatype}")
     chunk_map[datatype] = [None for _ in range(num_chunks)]
     save_settings()
@@ -276,16 +276,16 @@ def declare_new_datatype(datatype: str, attributes: set[str]):
 
 def remove_datatype(datatype: str) -> bool:
     """Removes a datatype and all data of that type. Returns if datatype was removed successfully."""
-    if datatype not in lib_struct.DATATYPES:
+    if datatype not in struct.DATATYPES:
         return False
 
-    lib_struct.DATATYPES.pop(datatype)
+    struct.DATATYPES.pop(datatype)
     shutil.rmtree(f"{LOCAL_DB_PATH}/{datatype}")
     save_settings()
     return True
 
 
-def map_data(datatype_old: str, datatype_new: str, mapping: Callable[[lib_struct.Nibble], lib_struct.Nibble]) -> None:
+def map_data(datatype_old: str, datatype_new: str, mapping: Callable[[struct.Nibble], struct.Nibble]) -> None:
     """
     Maps all data from one datatype to the new datatype using the provided mapping function.
     Be aware that this will overwrite all the data in the new datatype,
@@ -296,10 +296,10 @@ def map_data(datatype_old: str, datatype_new: str, mapping: Callable[[lib_struct
     :return:
     """
     LOG.debug(f"Mapping data from '{datatype_old}' to '{datatype_new}'...")
-    if datatype_old not in lib_struct.DATATYPES or datatype_new not in lib_struct.DATATYPES:
+    if datatype_old not in struct.DATATYPES or datatype_new not in struct.DATATYPES:
         raise ValueError("Datatype does not exist")
 
-    if os.path.exists(datatype_old):
+    if os.path.exists(f"{LOCAL_DB_PATH}/{datatype_old}"):
         files = os.listdir(f"{LOCAL_DB_PATH}/{datatype_old}")
     else:
         files = []
@@ -313,7 +313,7 @@ def map_data(datatype_old: str, datatype_new: str, mapping: Callable[[lib_struct
 
         new_chunk_dict = {}
         for tag, data in old_chunk_dict.items():
-            old_nibble = lib_struct.dict_to_nibble(data, tag, datatype_old)
+            old_nibble = struct.dict_to_nibble(data, tag, datatype_old)
             new_chunk_dict[tag] = mapping(old_nibble).to_json()
 
         wp = open(f"{LOCAL_DB_PATH}/{datatype_new}/{file}", "w")
@@ -353,7 +353,7 @@ def cache_contains(hsh: int, datatype: str) -> bool:
     return chunk_map[datatype][hsh] is not None
 
 
-def cache_get(hsh: int, datatype: str) -> lib_struct.Chunk | None:
+def cache_get(hsh: int, datatype: str) -> struct.Chunk | None:
     """
     Returns the first chunk in the cache with the given chunk hash and data type.
     If no chunk exists, return None.
@@ -365,7 +365,7 @@ def cache_get(hsh: int, datatype: str) -> lib_struct.Chunk | None:
 
 # region Data Functions
 
-def query_data(key: str, datatype="display", local=False) -> lib_struct.Nibble | None:
+def query_data(key: str, datatype="display", local=False) -> struct.Nibble | None:
     """
     Fetches the data associated with the given key and data type.
     :param key: the key to search for
@@ -393,7 +393,7 @@ def store_data(key: str, data: dict, datatype: str) -> bool:
     :return: True if the key already existed, false otherwise
     """
 
-    nib = lib_struct.dict_to_nibble(data, key, datatype)
+    nib = struct.dict_to_nibble(data, key, datatype)
     ch = chunk_hash(key)
     chunk = cache_get(ch, datatype)
     if chunk is None:
