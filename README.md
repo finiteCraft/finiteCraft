@@ -15,6 +15,7 @@ into one omniscient entity.
 
 **The benefits of our system:**
 - a smart auto-rescheduling multi-threaded scraper to search for recipes and elements
+- Max scraper speed achieved (so far): ***115 crafts/second***
 - a constantly growing database easily accessible through the website
 - a tree searcher that finds the most optimal way to craft any element, using the
   least number of elements and crafting steps
@@ -36,8 +37,7 @@ Pixelz might have been the original developer, but Quantum kicked it into high g
 He has pioneered the scraping side of this project, creating the best scraper for InfiniteCraft
 currently out there. He single-handedly built the proxy scraper and rescheduling system from the
 ground up to get around InfiniteCraft's rate limiter. He's given it multi-threading, interfacing
-with MongoDB, and so much more. The scraper now averages around 25-30 crafts a second.
-He has, without a doubt, hard-carried this project.
+with MongoDB, and so much more. He has, without a doubt, hard-carried this project.
 
 
 
