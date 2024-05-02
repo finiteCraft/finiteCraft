@@ -284,16 +284,17 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
 
     if info_doc is None:  # Doesn't exist, insert
         craft_result_collection.insert_one(new_document_data)
-        with depth_lock:
-            with open(f'data/depth/{final_element_depth}', 'a') as f:
-                f.write(f"{raw_craft[1]['result']}\n")
-            if not os.path.exists(f"data/depth/{final_element_depth}.size"):
-                update_sizefile = 1
-            else:
-                with open(f'data/depth/{final_element_depth}.size', 'r') as size:
-                    update_sizefile = int(size.readline()) + 1
-            with open(f'data/depth/{final_element_depth}.size', 'w') as size:
-                size.write(str(update_sizefile))
+        if raw_craft[1]["result"] != "Nothing":  # Prevent null craft :(
+            with depth_lock:
+                with open(f'data/depth/{final_element_depth}', 'a') as f:
+                    f.write(f"{raw_craft[1]['result']}\n")
+                if not os.path.exists(f"data/depth/{final_element_depth}.size"):
+                    update_sizefile = 1
+                else:
+                    with open(f'data/depth/{final_element_depth}.size', 'r') as size:
+                        update_sizefile = int(size.readline()) + 1
+                with open(f'data/depth/{final_element_depth}.size', 'w') as size:
+                    size.write(str(update_sizefile))
 
     elif info_doc["depth"] > new_document_data["depth"]:  # Newer depth? Optimize the depth
         craft_result_collection.delete_one(info_doc)

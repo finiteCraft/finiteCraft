@@ -57,7 +57,7 @@ def wait_for_mongodb_connection(database: pymongo.MongoClient):
             except (NetworkTimeout, ConnectionFailure, ServerSelectionTimeoutError, AutoReconnect):
                 log.warning(f"Failed to reconnect to MongoDB! (uri={CONNECTION_STRING})")
                 continue
-            log.info("Succesfully reconnected to MongoDB!")
+            log.info("Successfully reconnected to MongoDB!")
             break
 
 
@@ -68,7 +68,7 @@ def get_db_elements():
 
 librarian.set_logging(log_level=global_log_level)  # Initialize Librarian with our log level
 
-proxies: list[Proxy] = []  # A list of all of the Proxies currently being used
+proxies: list[Proxy] = []  # A list of all the Proxies currently being used
 last_depth_count = {}  # A dictionary of the format {<depth>: <number of elements in database with that depth>}.
 # Updated by update_librarian()
 
@@ -109,11 +109,10 @@ def update_librarian(push=True):
             elif document["type"] == "info":
                 del document["type"]
                 info = document
-        if element_key != "Nothing":  # Don't count null craft
-            if info["depth"] not in last_depth_count.keys():
-                last_depth_count[info["depth"]] = 1
-            else:
-                last_depth_count[info["depth"]] += 1
+        if info["depth"] not in last_depth_count.keys():
+            last_depth_count[info["depth"]] = 1
+        else:
+            last_depth_count[info["depth"]] += 1
 
         librarian.store_data(element_key, {"discovered": info["discovered"], "emoji": info["emoji"],
                                            "depth": info["depth"]}, "display")  # Store the display data
@@ -202,8 +201,16 @@ def generate_combinations(new_depth: int):
 
 if __name__ == "__main__":  # Mainloop
     while True:
-        update_librarian(push=False)  # Update librarian for depths TODO: make removal OK
-        print(last_depth_count)
+        read_depth = 0
+        last_depth_count = {}
+        while True:
+            try:
+                with open(f"data/depth/{read_depth}.size", "r") as f:
+                    last_depth_count[read_depth] = int(f.readline())
+            except FileNotFoundError:
+                break
+            read_depth += 1
+        log.info("Current depths according to depthfiles: ", last_depth_count)
         if current_depth is None:
             current_depth = max(last_depth_count.keys(), default=1)  # Figure out the depth we are currently on
         if last_depth_count == {}:  # If the database is empty,
@@ -221,7 +228,7 @@ if __name__ == "__main__":  # Mainloop
             last_depth_count = {0: 4, 1: 0}
 
         select_from = []
-        # The total number of elements in the database
+
         sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
 
         # The number of RECIPES in the depth (for progress bar / more efficient stop condition)
