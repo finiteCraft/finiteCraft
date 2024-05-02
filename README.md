@@ -14,7 +14,8 @@ been scattered across various repos and profiles, so we finally decided to bring
 into one omniscient entity.
 
 **The benefits of our system:**
-- a smart auto-rescheduling multithreaded scraper to search for recipes and elements
+- a smart auto-rescheduling multi-threaded scraper to search for recipes and elements
+- Max scraper speed achieved (so far): ***115 crafts/second***
 - a constantly growing database easily accessible through the website
 - a tree searcher that finds the most optimal way to craft any element, using the
   least number of elements and crafting steps
@@ -36,8 +37,7 @@ Pixelz might have been the original developer, but Quantum kicked it into high g
 He has pioneered the scraping side of this project, creating the best scraper for InfiniteCraft
 currently out there. He single-handedly built the proxy scraper and rescheduling system from the
 ground up to get around InfiniteCraft's rate limiter. He's given it multi-threading, interfacing
-with MongoDB, and so much more. The scraper now averages around 25-30 crafts a second.
-He has, without a doubt, hard-carried this project.
+with MongoDB, and so much more. He has, without a doubt, hard-carried this project.
 
 
 
@@ -50,7 +50,7 @@ He has, without a doubt, hard-carried this project.
     - [x] Keep track of which proxies are successful and which aren't
     - [x] automatically cycles through proxies that are unreliable
     - [x] reschedules proxies that have been temp-blocked by neal.fun to be used later
-  - [x] Multithreaded Workers searching for crafting recipes
+  - [x] Multi-threaded Workers searching for crafting recipes
     - [x] Probes InfiniteCraft through sessioned GET requests
     - [x] Sends packets of multiple requests at once to make up for slow proxies
   - [x] Storage of elements and recipe info
@@ -103,7 +103,7 @@ He has, without a doubt, hard-carried this project.
   - [ ] Ability to load InfiniteCraft save data from user's cookies
     - [ ] Option to use this save data to affect tree generation
     - Maybe an option to show the next crafts available to the user?
-  - [ ] Links to GitHub profiles and repos, because who doesn't like
+  - [ ] Links to github profiles and repos, because who doesn't like
         a little shameless self promotion?
 
 
