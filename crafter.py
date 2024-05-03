@@ -210,7 +210,7 @@ if __name__ == "__main__":  # Mainloop
             except FileNotFoundError:
                 break
             read_depth += 1
-        log.info("Current depths according to depthfiles: ", last_depth_count)
+        log.info(f"Current depths according to depthfiles: {last_depth_count}")
         if current_depth is None:
             current_depth = max(last_depth_count.keys(), default=1)  # Figure out the depth we are currently on
         if last_depth_count == {}:  # If the database is empty,
@@ -225,6 +225,9 @@ if __name__ == "__main__":  # Mainloop
                 zerofile.write("Fire\nWater\nWind\nEarth\n")
             with open("data/depth/0.size", "a") as zerosizefile:
                 zerosizefile.write("4")
+            last_depth_count = {0: 4, 1: 0}
+        if last_depth_count == {0: 4}:  # Edge case
+            current_depth = 1
             last_depth_count = {0: 4, 1: 0}
 
         select_from = []
