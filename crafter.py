@@ -18,8 +18,9 @@ parser = argparse.ArgumentParser(description="The crafter for https://github.com
 
 parser.add_argument("--uri", help="The MongoDB URI (connection string)", default=CONNECTION_STRING,
                     type=str)
-parser.add_argument("-w", '--workers', help="The number of Workers to use concurrently", type=int,
-                    default=5)
+parser.add_argument("-w", '--workers', help="The number of Workers to use concurrently"
+                                            " (maximum CPS = workers * 5)", type=int,
+                    default=10)
 parser.add_argument("--disable-proxy-rank", help="Disable the proxy ranking (speeds up start time but"
                                                  " slows down the program recognizing the usefulness of proxies).",
                     action="store_true")
@@ -207,7 +208,7 @@ if __name__ == "__main__":  # Mainloop
             try:
                 with open(f"data/depth/{read_depth}.size", "r") as f:
                     last_depth_count[read_depth] = int(f.readline())
-            except FileNotFoundError:
+            except FileNotFoundError:  # No more depthfiles to read
                 break
             read_depth += 1
         log.info(f"Current depths according to depthfiles: {last_depth_count}")
@@ -219,7 +220,10 @@ if __name__ == "__main__":  # Mainloop
             for element, item in enumerate(["Fire", "Water", "Wind", "Earth"]):
                 col = db.get_database("crafts").get_collection(item)
                 col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
-            shutil.rmtree("data/depth")
+            try:
+                shutil.rmtree("data/depth")
+            except FileNotFoundError:  # doesn't matter, just make it anew
+                pass
             os.mkdir("data/depth")
             with open("data/depth/0", "a") as zerofile:
                 zerofile.write("Fire\nWater\nWind\nEarth\n")

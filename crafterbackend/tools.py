@@ -251,7 +251,6 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     :param db: the MongoClient to add to
     :return: None
     """
-
     # Is the craft recursive?
     is_recursive = raw_craft[0][0][0] == raw_craft[1]["result"] or raw_craft[0][0][1] == raw_craft[1]["result"]
 
@@ -281,11 +280,11 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
                          "emoji": raw_craft[1]["emoji"],
                          "discovered": raw_craft[1]["discovered"],
                          "depth": depth}
-
-    if info_doc is None:  # Doesn't exist, insert
-        craft_result_collection.insert_one(new_document_data)
-        if raw_craft[1]["result"] != "Nothing":  # Prevent null craft :(
-            with depth_lock:
+    with depth_lock:
+        info_doc = craft_result_collection.find_one({"type": "info"})
+        if info_doc is None:  # Doesn't exist, insert
+            craft_result_collection.insert_one(new_document_data)
+            if raw_craft[1]["result"] != "Nothing":  # Prevent null craft :(
                 with open(f'data/depth/{final_element_depth}', 'a') as f:
                     f.write(f"{raw_craft[1]['result']}\n")
                 if not os.path.exists(f"data/depth/{final_element_depth}.size"):
@@ -296,7 +295,7 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
                 with open(f'data/depth/{final_element_depth}.size', 'w') as size:
                     size.write(str(update_sizefile))
 
-    elif info_doc["depth"] > new_document_data["depth"]:  # Newer depth? Optimize the depth
+    if info_doc is not None and info_doc["depth"] > new_document_data["depth"]:  # Newer depth? Optimize the depth
         craft_result_collection.delete_one(info_doc)
         craft_result_collection.insert_one(new_document_data)
 
@@ -390,9 +389,7 @@ def perform_initial_proxy_ranking(proxies):
 
 def encode_element_name(element):
     """
-    Decode element name so MongoDB
-
-     can handle it.
+    Encode element name so MongoDB can handle it. Still visually the same tho
     """
     full_period = "\uff0e"
     full_dollar_sign = "\uff04"
