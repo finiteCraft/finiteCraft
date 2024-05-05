@@ -1,6 +1,8 @@
-DATATYPES: dict[str, set[str]] = {
+BUNDLE_TYPES: dict[str, set[str]] = {
     "testtype": {"one", "two"}
 }
+
+GENERAL_BUNDLE = "all"
 
 class Nibble:
     """
@@ -9,27 +11,30 @@ class Nibble:
     and its datatype, which it uses to validate any attempts
     to access its data.
     """
-    def __init__(self, tag: str, datatype: str):
-        if datatype not in DATATYPES:
-            raise ValueError(f"Datatype \"{datatype}\" does not exist")
+    def __init__(self, tag: str, bundle_type: str):
+        if bundle_type != "all" and bundle_type not in BUNDLE_TYPES:
+            raise ValueError(f"Bundle type \"{bundle_type}\" does not exist")
         self.tag = tag
-        self.datatype = datatype
-        self.data = {attr: 0 for attr in DATATYPES[datatype]}
+        self.bundle_type = bundle_type
+        if bundle_type == "all":
+            self.data = dict()
+        else:
+            self.data = {attr: 0 for attr in BUNDLE_TYPES[bundle_type]}
 
     def __getitem__(self, item: str):
-        if item not in DATATYPES[self.datatype]:
-            raise KeyError(f"Datatype \"{self.datatype}\" has no attribute \"{item}\"")
+        if self.bundle_type != "all" and item not in BUNDLE_TYPES[self.bundle_type]:
+            raise KeyError(f"Datatype \"{self.bundle_type}\" has no attribute \"{item}\"")
 
         return self.data[item]
 
     def __setitem__(self, key: str, value):
-        if key not in DATATYPES[self.datatype]:
-            raise KeyError(f"Datatype \"{self.datatype}\" has no attribute \"{key}\"")
+        if self.bundle_type != "all" and key not in BUNDLE_TYPES[self.bundle_type]:
+            raise KeyError(f"Datatype \"{self.bundle_type}\" has no attribute \"{key}\"")
 
         self.data[key] = value
 
     def __str__(self) -> str:
-        return f"Nibble[Tag='{self.tag}', Datatype={self.datatype}]"
+        return f"Nibble[Tag='{self.tag}', Datatype={self.bundle_type}]"
 
     def to_json(self) -> dict:
         return self.data.copy()
@@ -50,14 +55,14 @@ class Chunk:
     Each chunk has an associated hash and datatype, and
     has a flag to keep track of whether it has been updated.
     """
-    def __init__(self, hsh: int, datatype: str, nibbles: dict[str, Nibble]):
+    def __init__(self, hsh: int, bundle_type: str, nibbles: dict[str, Nibble]):
         self.hsh = hsh
-        self.datatype = datatype
+        self.bundle_type = bundle_type
         self.nibbles = nibbles
         self.updated = False
 
     def __str__(self) -> str:
-        return f"Chunk[Hash={self.hsh}, Datatype={self.datatype}, Updated={self.updated}]"
+        return f"Chunk[Hash={self.hsh}, Datatype={self.bundle_type}, Updated={self.updated}]"
 
 
 
