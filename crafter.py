@@ -115,11 +115,11 @@ def update_librarian(push=True):
         else:
             last_depth_count[info["depth"]] += 1
 
-        librarian.store_data(element_key, {"discovered": info["discovered"], "emoji": info["emoji"],
-                                           "depth": info["depth"]}, "display")  # Store the display data
         pre = [i[0] for i in crafted_by if i[1]]  # Predepth recipes
         post = [i[0] for i in crafted_by if not i[1]]  # Postdepth recipes
-        librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"]}, "search")
+        librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"],
+                                           "emoji": info["emoji"], "discovered": info["discovered"]},
+                             allow_missing_attributes=True)
         # Store the search data
 
     librarian.cache_clear()
