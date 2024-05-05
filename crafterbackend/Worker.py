@@ -217,7 +217,7 @@ class Worker:
 
             if delta > 0:
                 # If we are too fast for the rate limit, sleep it off
-                self.logger.info(f"Sleeping for {round(delta, 2)} seconds to keep with ratelimit of"
+                self.logger.debug(f"Sleeping for {round(delta, 2)} seconds to keep with ratelimit of"
                                  f" {MAXIMUM_REQUESTS_PER_SECOND} request(s) per second.")
                 time.sleep(delta)
 

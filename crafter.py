@@ -18,8 +18,9 @@ parser = argparse.ArgumentParser(description="The crafter for https://github.com
 
 parser.add_argument("--uri", help="The MongoDB URI (connection string)", default=CONNECTION_STRING,
                     type=str)
-parser.add_argument("-w", '--workers', help="The number of Workers to use concurrently", type=int,
-                    default=5)
+parser.add_argument("-w", '--workers', help="The number of Workers to use concurrently"
+                                            " (maximum CPS = workers * 5)", type=int,
+                    default=10)
 parser.add_argument("--disable-proxy-rank", help="Disable the proxy ranking (speeds up start time but"
                                                  " slows down the program recognizing the usefulness of proxies).",
                     action="store_true")
@@ -57,7 +58,7 @@ def wait_for_mongodb_connection(database: pymongo.MongoClient):
             except (NetworkTimeout, ConnectionFailure, ServerSelectionTimeoutError, AutoReconnect):
                 log.warning(f"Failed to reconnect to MongoDB! (uri={CONNECTION_STRING})")
                 continue
-            log.info("Succesfully reconnected to MongoDB!")
+            log.info("Successfully reconnected to MongoDB!")
             break
 
 
@@ -68,7 +69,7 @@ def get_db_elements():
 
 librarian.set_logging(log_level=global_log_level)  # Initialize Librarian with our log level
 
-proxies: list[Proxy] = []  # A list of all of the Proxies currently being used
+proxies: list[Proxy] = []  # A list of all the Proxies currently being used
 last_depth_count = {}  # A dictionary of the format {<depth>: <number of elements in database with that depth>}.
 # Updated by update_librarian()
 
@@ -109,11 +110,10 @@ def update_librarian(push=True):
             elif document["type"] == "info":
                 del document["type"]
                 info = document
-        if element_key != "Nothing":  # Don't count null craft
-            if info["depth"] not in last_depth_count.keys():
-                last_depth_count[info["depth"]] = 1
-            else:
-                last_depth_count[info["depth"]] += 1
+        if info["depth"] not in last_depth_count.keys():
+            last_depth_count[info["depth"]] = 1
+        else:
+            last_depth_count[info["depth"]] += 1
 
         librarian.store_data(element_key, {"discovered": info["discovered"], "emoji": info["emoji"],
                                            "depth": info["depth"]}, "display")  # Store the display data
@@ -202,8 +202,16 @@ def generate_combinations(new_depth: int):
 
 if __name__ == "__main__":  # Mainloop
     while True:
-        update_librarian(push=False)  # Update librarian for depths TODO: make removal OK
-        print(last_depth_count)
+        read_depth = 0
+        last_depth_count = {}
+        while True:
+            try:
+                with open(f"data/depth/{read_depth}.size", "r") as f:
+                    last_depth_count[read_depth] = int(f.readline())
+            except FileNotFoundError:  # No more depthfiles to read
+                break
+            read_depth += 1
+        log.info(f"Current depths according to depthfiles: {last_depth_count}")
         if current_depth is None:
             current_depth = max(last_depth_count.keys(), default=1)  # Figure out the depth we are currently on
         if last_depth_count == {}:  # If the database is empty,
@@ -212,16 +220,22 @@ if __name__ == "__main__":  # Mainloop
             for element, item in enumerate(["Fire", "Water", "Wind", "Earth"]):
                 col = db.get_database("crafts").get_collection(item)
                 col.insert_one({"type": "info", "depth": 0, "emoji": emojis[element], "discovered": False})
-            shutil.rmtree("data/depth")
+            try:
+                shutil.rmtree("data/depth")
+            except FileNotFoundError:  # doesn't matter, just make it anew
+                pass
             os.mkdir("data/depth")
             with open("data/depth/0", "a") as zerofile:
                 zerofile.write("Fire\nWater\nWind\nEarth\n")
             with open("data/depth/0.size", "a") as zerosizefile:
                 zerosizefile.write("4")
             last_depth_count = {0: 4, 1: 0}
+        if last_depth_count == {0: 4}:  # Edge case
+            current_depth = 1
+            last_depth_count = {0: 4, 1: 0}
 
         select_from = []
-        # The total number of elements in the database
+
         sum_of_total = sum([last_depth_count[i] for i in range(0, current_depth)])
 
         # The number of RECIPES in the depth (for progress bar / more efficient stop condition)
