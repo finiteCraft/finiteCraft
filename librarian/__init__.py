@@ -50,13 +50,12 @@ if "H_LIB" not in globals():
     chunk_map: dict[str, list[struct.Chunk | None]] = dict()  # A dictionary-array containing pointers to all loaded chunks
     num_chunks: int = 0  # Number of chunks in the database
     cache: deque[struct.Chunk] = deque()  # A queue of the loaded chunks. Used to keep track of order added
-    settings = dict()
 
     def update_local():
         """Pulls from the online database to the library"""
         global chunk_map
         global cache
-        global settings
+        global num_chunks
 
         LOG.info("Beginning pull process...")
         LOG.debug("Pulling changes...")
