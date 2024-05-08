@@ -140,7 +140,7 @@ class Worker:
                 check = False
                 while True:
                     try:
-                        check = check_craft_exists_db(current_craft[0], self.db, return_craft_data=True)
+                        check = check_craft_exists_db(current_craft[0], self.db, return_craft_data=False)
                     except (ServerSelectionTimeoutError, AutoReconnect):
                         self.logger.error("Failed to check craft existence! Retrying in 1 second...")
                         continue

@@ -1,0 +1,42 @@
+services:
+  crafter:
+    image: finitecraft:latest
+    container_name: crafter
+    build:
+      network: host
+    restart: always
+    privileged: true
+    volumes:
+      - depth:/opt/finitecraft/data/depth
+    depends_on:
+      - mongodb
+    networks:
+    - app
+  mongodb:
+    image: mongo:latest
+    container_name: database
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - db:/data/db
+    networks:
+      app:
+        ipv4_address: 172.21.0.2
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    memswap_limit: 8G
+    command: --wiredTigerCacheSizeGB 0.5
+networks:
+  app:
+    name: app
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
+volumes:
+  depth:
+  db:

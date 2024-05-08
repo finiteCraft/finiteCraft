@@ -5,7 +5,7 @@ import random
 import sys
 import threading
 import time
-
+from constants import *
 import fake_useragent
 import pymongo
 import requests
@@ -252,17 +252,17 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     :return: None
     """
     # Is the craft recursive?
-    is_recursive = raw_craft[0][0][0] == raw_craft[1]["result"] or raw_craft[0][0][1] == raw_craft[1]["result"]
+    is_recursive = raw_craft[0][0][0] == raw_craft[1][RESULT_NAME] or raw_craft[0][0][1] == raw_craft[1][RESULT_NAME]
 
     # Get the collections for both items and their result.
-    craft_item_two_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][1]))
-    craft_item_one_collection = db["crafts"].get_collection(encode_element_name(raw_craft[0][0][0]))
-    craft_result_collection = db["crafts"].get_collection(encode_element_name(raw_craft[1]["result"]))
-    info_doc = craft_result_collection.find_one({"type": "info"})
+    craft_item_two_collection = db[DATABASE].get_collection(encode_element_name(raw_craft[0][0][1]))
+    craft_item_one_collection = db[DATABASE].get_collection(encode_element_name(raw_craft[0][0][0]))
+    craft_result_collection = db[DATABASE].get_collection(encode_element_name(raw_craft[1][RESULT_NAME]))
+    info_doc = craft_result_collection.find_one({TYPE_NAME: INFO_PACKET_NAME})
     element_one_depth = raw_craft[0][1]
     element_two_depth = raw_craft[0][2]
 
-    if raw_craft[1]["result"] in ["Fire", "Water", "Earth", "Wind"]:  # Depth 0 check
+    if raw_craft[1][RESULT_NAME] in STARTING_ELEMENTS:  # Depth 0 check
         depth = 0
     else:
         depth = max(element_one_depth, element_two_depth) + 1  # Otherwise, max the depths and add 1
@@ -276,39 +276,39 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     is_predepth = final_element_depth >= element_one_depth and final_element_depth >= element_two_depth
 
     # The new info document
-    new_document_data = {"type": "info",
-                         "emoji": raw_craft[1]["emoji"],
-                         "discovered": raw_craft[1]["discovered"],
-                         "depth": depth}
+    new_document_data = {TYPE_NAME: INFO_PACKET_NAME,
+                         EMOJI_NAME: raw_craft[1][EMOJI_NAME],
+                         DISCOVERED_NAME: raw_craft[1][DISCOVERED_NAME],
+                         DEPTH_NAME: depth}
     with depth_lock:
-        info_doc = craft_result_collection.find_one({"type": "info"})
+        info_doc = craft_result_collection.find_one({TYPE_NAME: INFO_PACKET_NAME})
         if info_doc is None:  # Doesn't exist, insert
             craft_result_collection.insert_one(new_document_data)
-            if raw_craft[1]["result"] != "Nothing":  # Prevent null craft :(
-                with open(f'data/depth/{final_element_depth}', 'a') as f:
-                    f.write(f"{raw_craft[1]['result']}\n")
-                if not os.path.exists(f"data/depth/{final_element_depth}.size"):
+            if raw_craft[1][RESULT_NAME] != NULL:  # Prevent null craft :(
+                with open(f'{DEPTHFILE_STORAGE}/{final_element_depth}', 'a') as f:
+                    f.write(f"{raw_craft[1][RESULT_NAME]}\n")
+                if not os.path.exists(f"{DEPTHFILE_STORAGE}/{final_element_depth}.size"):
                     update_sizefile = 1
                 else:
-                    with open(f'data/depth/{final_element_depth}.size', 'r') as size:
+                    with open(f'{DEPTHFILE_STORAGE}/{final_element_depth}.size', 'r') as size:
                         update_sizefile = int(size.readline()) + 1
-                with open(f'data/depth/{final_element_depth}.size', 'w') as size:
+                with open(f'{DEPTHFILE_STORAGE}/{final_element_depth}.size', 'w') as size:
                     size.write(str(update_sizefile))
 
-    if info_doc is not None and info_doc["depth"] > new_document_data["depth"]:  # Newer depth? Optimize the depth
+    if info_doc is not None and info_doc[DEPTH_NAME] > new_document_data[DEPTH_NAME]:  # Newer depth? Optimize the depth
         craft_result_collection.delete_one(info_doc)
         craft_result_collection.insert_one(new_document_data)
 
     # Generate new documents
-    new_document_crafted_by = {"type": "crafted_by", "craft": raw_craft[0][0], "recursive": is_recursive,
-                               "predepth": is_predepth}
-    new_document_crafts_1 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][0],
-                             "recursive": is_recursive, "predepth": is_predepth}
-    new_document_crafts_2 = {"type": "crafts", "craft": raw_craft[1]["result"], "with": raw_craft[0][0][1],
-                             "recursive": is_recursive, "predepth": is_predepth}
+    new_document_crafted_by = {TYPE_NAME: CBY_PACKET_NAME, CRAFT_NAME: raw_craft[0][0], RECURSIVE_NAME: is_recursive,
+                               PREDEPTH_NAME: is_predepth}
+    new_document_crafts_1 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME], WITH_NAME: raw_craft[0][0][0],
+                             RECURSIVE_NAME: is_recursive, PREDEPTH_NAME: is_predepth}
+    new_document_crafts_2 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME], WITH_NAME: raw_craft[0][0][1],
+                             RECURSIVE_NAME: is_recursive, PREDEPTH_NAME: is_predepth}
 
     # Insertion logic
-    if new_document_crafts_1["with"] == new_document_crafts_2["with"]:  # double recipe (Water + Water)
+    if new_document_crafts_1[WITH_NAME] == new_document_crafts_2[WITH_NAME]:  # double recipe (Water + Water)
         if craft_item_two_collection.find_one(new_document_crafts_1) is None:
             craft_item_two_collection.insert_one(new_document_crafts_1)
     else:
@@ -332,17 +332,19 @@ def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pym
     """
     if db is None:
         return False  # no database, doesn't exist
-    craft_db = db["crafts"].get_collection(encode_element_name(craft_data[0])).find_one(
-        {"type": "crafts", "with": craft_data[1]})
+    craft_db = db[DATABASE].get_collection(encode_element_name(craft_data[0])).find_one(
+        {TYPE_NAME: CRAFT_NAME, WITH_NAME: craft_data[1]})
     if not return_craft_data or craft_db is None:  # If we don't need to send the craft or we can't, return
         return craft_db is not None
+
+    # TODO: Remove this code
     else:  # We are sending the craft data
-        this_item_crafts = craft_db["craft"]
-        info = db["crafts"].get_collection(encode_element_name(this_item_crafts)).find_one(
-            {"type": "info"})  # Try to get the info
+        this_item_crafts = craft_db[CRAFT_NAME]
+        info = db[DATABASE].get_collection(encode_element_name(this_item_crafts)).find_one(
+            {TYPE_NAME: INFO_PACKET_NAME})  # Try to get the info
         if info is not None:  # Just in case (this should never not happen)
-            emoji = info["emoji"]
-            is_discovered = info["discovered"]
+            emoji = info[EMOJI_NAME]
+            is_discovered = info[DISCOVERED_NAME]
         else:
             emoji = ""
             is_discovered = ""
