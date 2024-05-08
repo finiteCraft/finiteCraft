@@ -71,7 +71,7 @@ def cache_get(hsh: int, data_type: str) -> Chunk | None:
     return chunk_map[data_type][hsh]
 
 def init(log_level):
-    """Initializes the librarian settings and updates the local database."""
+    """Initializes the rip_librarian settings and updates the local database."""
     global chunk_map
     global num_chunks
     global DATATYPES

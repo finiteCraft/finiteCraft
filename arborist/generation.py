@@ -1,7 +1,7 @@
 import time
 from collections import deque
 from copy import deepcopy
-import librarian
+import rip_librarian
 import logging
 
 from structures import *
@@ -14,7 +14,7 @@ GIVEN_ELEMENTS: set[str] = {"Water", "Fire", "Wind", "Earth"}
 
 def get_recipes_for(element: str) -> list[tuple[str, str]]:
     # return RECIPES[element]
-    d = librarian.query_data(element, "search")
+    d = rip_librarian.query_data(element, "search")
     if d is None:
         return []
     ret: list[tuple[str, str]] = deepcopy(d["pre"])
@@ -23,7 +23,7 @@ def get_recipes_for(element: str) -> list[tuple[str, str]]:
 
 
 def get_pre_recipes_for(element: str) -> list[tuple[str, str]]:
-    d = librarian.query_data(element, "search")
+    d = rip_librarian.query_data(element, "search")
     if d is None:
         return []
     return d["pre"]
@@ -154,7 +154,7 @@ def h_smallest_tree_ld(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
@@ -221,7 +221,7 @@ def h_smallest_tree_dc1(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     if len(working_tree) > 0 and leaf_depth >= dc1_root_depth:
@@ -292,7 +292,7 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
@@ -325,8 +325,8 @@ def h_smallest_tree_dc2(working_tree: dict[str: tuple[str, str] | None],
     for i, recipe in enumerate(recipes):  # For every recipe...
         ing1 = recipe[0]
         ing2 = recipe[1]
-        if (librarian.query_data(ing1, "search")["depth"] >= depth_thresh or
-                librarian.query_data(ing2, "search")["depth"] >= depth_thresh):
+        if (rip_librarian.query_data(ing1, "search")["depth"] >= depth_thresh or
+                rip_librarian.query_data(ing2, "search")["depth"] >= depth_thresh):
             log.debug(f"DC2 optimization utililzed! {leaf} = {ing1} + {ing2}")
             continue
 
@@ -371,7 +371,7 @@ def h_smallest_tree_dc3(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
@@ -440,7 +440,7 @@ def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     coming_from, leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
@@ -493,7 +493,7 @@ def h_smallest_tree_dc3b(working_tree: dict[str: tuple[str, str] | None],
 
 
 def get_recipes_kma(element: str) -> list[tuple[str, str]]:
-    d = librarian.query_data(element, "kma")
+    d = rip_librarian.query_data(element, "kma")
     if d is None:
         return []
     recipes: list[tuple[str, str]] = d["pre"]
@@ -537,7 +537,7 @@ def h_smallest_tree_kma1(working_tree: dict[str: tuple[str, str] | None],
         return smallest
 
     coming_from, leaf = leaves.popleft()
-    leaf_depth = librarian.query_data(leaf, "search")["depth"]
+    leaf_depth = rip_librarian.query_data(leaf, "search")["depth"]
 
     # PRUNING BLOCK
     # the +1 comes from the minimum number of breadcrumbs for a element of a given depth.
@@ -603,7 +603,7 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
     leaves = deque()
     leaves.append(('', target_element))
     smallest = {}
-    # dc1_root_depth = librarian.query_data(target_element, "search")["depth"]
+    # dc1_root_depth = rip_librarian.query_data(target_element, "search")["depth"]
     tree = h_smallest_tree_dc3b(working_tree, leaves, smallest)
     log.info("Tree Search Complete")
     return tree
@@ -611,7 +611,7 @@ def smallest_tree(target_element: str) -> dict[str, tuple[str, str]]:
 
 def smallest_tree_kma(target_element: str) -> dict[str, tuple[str, str]]:
     log.info("Starting tree search")
-    nibble = librarian.query_data(target_element, "kma")
+    nibble = rip_librarian.query_data(target_element, "kma")
     if len(nibble["smallest_tree"]):
         log.info("Tree already computed")
         return nibble["smallest_tree"].copy()
@@ -622,21 +622,21 @@ def smallest_tree_kma(target_element: str) -> dict[str, tuple[str, str]]:
     smallest = {}
     tree = h_smallest_tree_kma1(working_tree, leaves, smallest)
     nibble["smallest_tree"] = tree
-    librarian.store_data(target_element, nibble.to_json(), "kma")
-    librarian.cache_clear()
-    librarian.update_remote()
+    rip_librarian.store_data(target_element, nibble.to_json(), "kma")
+    rip_librarian.cache_clear()
+    rip_librarian.update_remote()
     log.info("Tree Search Complete")
     return tree
 
 
 if __name__ == "__main__":
-    librarian.set_logging(logging.DEBUG)
-    librarian.update_local()
-    librarian.update_remote()
+    rip_librarian.set_logging(logging.DEBUG)
+    rip_librarian.update_local()
+    rip_librarian.update_remote()
 
     print(get_pre_recipes_for("Wave"))
     print(get_pre_recipes_for("Stone"))
-    print(librarian.query_data("Wine")["depth"])
+    print(rip_librarian.query_data("Wine")["depth"])
 
     start = time.time_ns()
     # time.sleep(0.5)
