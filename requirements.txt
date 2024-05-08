@@ -6,5 +6,5 @@ pyopenssl  # requests requirement
 pyasn1  # requests
 pymongo  # database operations
 gitpython  # push to API repo
-ujson  # Speedy json for librarian
+ujson  # Speedy json for rip_librarian
 urllib3  # Another requests dep

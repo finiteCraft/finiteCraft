@@ -8,7 +8,7 @@ from git import Repo
 import shutil
 from collections import deque
 
-import librarian.structures as struct
+import rip_librarian.structures as struct
 
 # Initialization
 if "H_LIB" not in globals():

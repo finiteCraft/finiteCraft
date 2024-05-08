@@ -6,7 +6,7 @@ import pymongo
 import logging
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, AutoReconnect, NetworkTimeout
 import argparse
-import librarian
+import rip_librarian
 from crafterbackend.Proxy import Proxy
 from crafterbackend.Scheduler import Scheduler
 from crafterbackend.tools import (perform_initial_proxy_ranking, get_many_url_proxies, ImprovedThread)
@@ -67,7 +67,7 @@ def get_db_elements():
     return cols
 
 
-librarian.set_logging(log_level=global_log_level)  # Initialize Librarian with our log level
+rip_librarian.set_logging(log_level=global_log_level)  # Initialize Librarian with our log level
 
 proxies: list[Proxy] = []  # A list of all the Proxies currently being used
 last_depth_count = {}  # A dictionary of the format {<depth>: <number of elements in database with that depth>}.
@@ -82,7 +82,7 @@ wait_for_mongodb_connection(db)  # Ensure we are connected to MongoDB before we 
 
 def update_librarian(push=True):
     """
-    Update librarian and push to GitHub if necessary
+    Update rip_librarian and push to GitHub if necessary
     :param push: If true, push to GitHub, otherwise only make local changes
     """
     global last_depth_count
@@ -98,9 +98,9 @@ def update_librarian(push=True):
 
     stats = {"unique": len(raw_database),
              "mongodb": db["crafts"].command("dbstats")}  # Stats
-    ujson.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
+    ujson.dump(stats, open(rip_librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
 
-    for i, element_key in enumerate(raw_database):  # Organize data for librarian
+    for i, element_key in enumerate(raw_database):  # Organize data for rip_librarian
         data = raw_database[element_key]
         info = {}
         crafted_by = []
@@ -117,14 +117,14 @@ def update_librarian(push=True):
 
         pre = [i[0] for i in crafted_by if i[1]]  # Predepth recipes
         post = [i[0] for i in crafted_by if not i[1]]  # Postdepth recipes
-        librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"],
+        rip_librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"],
                                            "emoji": info["emoji"], "discovered": info["discovered"]},
-                             allow_missing_attributes=True)
+                                 allow_missing_attributes=True)
         # Store the search data
 
-    librarian.cache_clear()
+    rip_librarian.cache_clear()
     if push:
-        librarian.update_remote()
+        rip_librarian.update_remote()
     log.info(f"Done running update_librarian (push={push}, elapsed={round(time.time() - start, 2)})")
 
 
