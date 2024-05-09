@@ -40,10 +40,26 @@ ground up to get around InfiniteCraft's rate limiter. He's given it multi-thread
 with MongoDB, and so much more. He has, without a doubt, hard-carried this project.
 
 
+## How to install finiteCraft
+
+First, [install docker](https://docs.docker.com/engine/install/).
+
+Then, open the terminal and run this oneliner:
+(You will need to enter your password)
+
+macOS/Linux: `git clone https://github.com/finitecraft/finitecraft.git && cd finitecraft
+&& sudo docker compose build && sudo docker compose up -d` 
+
+Windows: You will need to install [git for windows](https://gitforwindows.org/) before you can run this snippet
+*IN GIT BASH*:
+`git clone https://github.com/finitecraft/finitecraft.git && cd finitecraft
+&& sudo docker compose build && sudo docker compose up -d` 
+
+If you have any trouble with this, please open an issue :)
 
 ## TODO LIST:
 
-- [x] Autocrafter
+- [x] Autocrafter (quantumbagel)
   - [x] Proxy Scraper
     - [x] Searches multiple proxy sources
   - [x] Proxy management
@@ -65,9 +81,6 @@ with MongoDB, and so much more. He has, without a doubt, hard-carried this proje
     - [x] Store recipes in map
       - Maps from element key to a list of all recipes that make that element,
         each stored as a tuple of the two ingredient keys
-  - [x] Exports data to GitHub repository
-    - Use of subprocess commands to interact with Git
-    - [x] Chunking
   - [x] API for accessing information from the repo
     - [x] Interfaces with chunking
     - [x] User can get element info
@@ -77,7 +90,7 @@ with MongoDB, and so much more. He has, without a doubt, hard-carried this proje
   - [x] optimized generation algorithm
 
 
-- [ ] Arborist
+- [ ] Arborist (Pixelz22)
   - [x] Basic tree generation
   - [x] Naive search function
   - [x] Basic pruning based on breadcrumb count
@@ -85,14 +98,13 @@ with MongoDB, and so much more. He has, without a doubt, hard-carried this proje
   - [ ] Recipe scoring function
     - [ ] Prioritize recipes that were part of other smallest trees
     - [ ] Uses max depth of the ingredients
-    - [ ] Try prioritizing recipes that make use of already crafted elements
-    - [ ] Come up with other ideas
+    - [ ] Try prioritizing recipes that make use of already crafted elements - [ ] Come up with other ideas
   - [ ] Order recipes during search using scoring function
   - [ ] Timeout option to cancel search early
   - [ ] Research other means of optimization
 
 
-- [ ] Website Frontend
+- [ ] Website Frontend (quantumbagel)
   - [ ] Scrollable list of elements 
   - [ ] Search bar for elements
   - [ ] Element display:
@@ -106,6 +118,20 @@ with MongoDB, and so much more. He has, without a doubt, hard-carried this proje
   - [ ] Links to github profiles and repos, because who doesn't like
         a little shameless self promotion?
 
+- [ ] WebSocket Server (quantumbagel)
+  - [ ] Implement basic modular opcode server
+  - [ ] Opcodes:
+    - [ ] Display Opcode range (offset, length, sort): return emoji, first discovery, depth
+    - [ ] Display Opcode specific (element): return emoji, first discovery, depth
+    - [ ] Tree Opcode specific (element): return tree of element with id and emoji for each step
+    - [ ] Heartbeat opcode: keep alive
+    - [ ] Stat opcode: get stats for DB
+    - [ ] Uses opcode range (offset, length, sort, element): get uses for element
+    - [ ] Included in opcode range (offset, length, sort, element): get things the element is the result of
+  - [ ] Sorting modes (for now):
+    - [ ] Depth
+    - [ ] Name
 
 - [ ] Tyler
+
 
