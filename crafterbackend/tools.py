@@ -5,7 +5,7 @@ import random
 import sys
 import threading
 import time
-from constants import *
+from crafterbackend.constants import *
 import fake_useragent
 import pymongo
 import requests
