@@ -11,7 +11,9 @@ _Here, have my proxy code [@Pixelz22](https://github.com/Pixelz22)_
 This code is meant to be a conglomerate of all tools you could think of needing for mastering
 Neal Agarwal's Infinite Craft (https://neal.fun/infinite-craft). Up until now, these tools have
 been scattered across various repos and profiles, so we finally decided to bring them all together
-into one omniscient entity.
+into one omniscient entity. 
+
+*If you find this code interesting, we would love it if you would follow finiteCraft and star our repo! Your support is appreciated :D*
 
 **The benefits of our system:**
 - a smart auto-rescheduling multi-threaded scraper to search for recipes and elements
