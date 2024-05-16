@@ -224,7 +224,8 @@ if __name__ == "__main__":  # Mainloop
             emojis = ["🔥", "💧", "🌬️", "🌍"]
             for element, item in enumerate(STARTING_ELEMENTS.keys()):
                 col = db.get_database(DATABASE).get_collection(item)
-                col.insert_one({TYPE_NAME: INFO_PACKET_NAME, DEPTH_NAME: 0, EMOJI_NAME: emojis[element], DISCOVERED_NAME: False})
+                col.insert_one({TYPE_NAME: INFO_PACKET_NAME, DEPTH_NAME: 0,
+                                EMOJI_NAME: emojis[element], DISCOVERED_NAME: False})
             try:
                 os.makedirs(DEPTHFILE_STORAGE)
             except FileExistsError:

@@ -41,6 +41,7 @@ class Worker:
         """
 
         self.kill = False  # Whether to force quit the worker. Set this externally
+        self.killable = True  # Whether the worker is currently killable
         self.thread = ImprovedThread(target=Worker.run, args=[self], daemon=True)
         self.all_proxies = all_proxies
         self.spare_crafts = spare_crafts
@@ -67,7 +68,7 @@ class Worker:
 
     def finish_working(self) -> bool:
         """
-        Wait for the Worker to finish. Currently unused
+        Wait for the Worker to finish.
         :return: False if the Worker isn't running and True if the Worker was running, but finished
         """
         if self.thread.ident is None:
@@ -90,10 +91,13 @@ class Worker:
         self.completed = 0
         self.skipped = 0
         self.kill = False
+        self.killable = True
 
         s = time.time()
         grab_attempt = self.proxy.grab(self)
         if not grab_attempt:  # If we can't get a proxy, this worker can quit (too many workers relative to proxies)
+            self.logger.warning("Failed to allocate proxy on startup! There are TOO MANY Workers! "
+                                "Please decrease the number of workers (-w)")
             return
 
         batch_number = 1  # The current batch number
@@ -106,6 +110,7 @@ class Worker:
             batch_crafts = []
             self.logger.debug(f"Now allocating batch {batch_number} "
                               f"(Current execution time: {round(time.time() - s, 2)}s)")
+            self.killable = False
             try:
                 try:
                     for _ in range(self.batch_size):
@@ -127,7 +132,7 @@ class Worker:
 
             if not len(batch_crafts):  # It was empty from the start
                 return
-
+            self.killable = True
             self.logger.debug(f"Now executing batch {batch_number} "
                               f"(Current execution time: {round(time.time() - s, 2)}s)")
             batch_threads = []
@@ -140,7 +145,7 @@ class Worker:
                 check = False
                 while True:
                     try:
-                        check = check_craft_exists_db(current_craft[0], self.db, return_craft_data=False)
+                        check = check_craft_exists_db(current_craft[0], self.db)
                     except (ServerSelectionTimeoutError, AutoReconnect):
                         self.logger.error("Failed to check craft existence! Retrying in 1 second...")
                         continue
@@ -165,8 +170,10 @@ class Worker:
             self.logger.debug(f"Finished spawning threads for batch {batch_number}. "
                               f"There are {len(batch_threads)} threads started.")
 
+
             need_new_proxy = False
             failed_crafts = []  # The crafts that didn't work
+            proxy_submissions = []
             for index, thread in enumerate(batch_threads):
                 if self.kill:
                     return  # Check for kill switch
@@ -174,29 +181,32 @@ class Worker:
                 self.logger.debug(f"Job {index + 1} of batch {batch_number} {batch_crafts[index][0]}"
                                   f" returned value: {result}")
                 if result["status"] == "success":
-                    # print(batch_crafts[batch_indices[index]])
                     self.completed += 1
+                    self.killable = False
                     while True:
                         try:
                             add_raw_craft_to_db([batch_crafts[batch_indices[index]], result], self.db)  # Save to DB
                         except (ServerSelectionTimeoutError, AutoReconnect):
                             self.logger.error("Failed to log craft to database! Retrying in 1 second...")
+                            self.killable = True
                             continue
                         break
-                    self.proxy.submit(True, result["time_elapsed"])
+                    self.killable = True
+                    proxy_submissions.append([True, result["time_elapsed"]])
                 # Submit metrics to the Proxy object
                 elif result["type"] == "read":
-                    self.proxy.submit(False, None, True, False)
+                    proxy_submissions.append([False, None, True, False])
                 elif result["type"] == "connection":
-                    self.proxy.submit(False, None, False, False)
+                    proxy_submissions.append([False, None, False, False])
                 elif result["type"] == "ratelimit":
-                    self.proxy.submit(False, None, True, False,
-                                      retry_after=result["penalty"])
+                    proxy_submissions.append([False, None, True, False, result["penalty"]])
 
                 if result["status"] != "success":
                     # Add the craft to failed_crafts if it failed
                     failed_crafts.append(batch_crafts[index])
                     need_new_proxy = True  # We have to find a new proxy 
+
+            self.proxy.submit_many(proxy_submissions)
 
             # Check for failed crafts
             if need_new_proxy:  # One (or more) crafts failed, and we have to find a new proxy
@@ -218,7 +228,7 @@ class Worker:
             if delta > 0:
                 # If we are too fast for the rate limit, sleep it off
                 self.logger.debug(f"Sleeping for {round(delta, 2)} seconds to keep with ratelimit of"
-                                 f" {MAXIMUM_REQUESTS_PER_SECOND} request(s) per second.")
+                                  f" {MAXIMUM_REQUESTS_PER_SECOND} request(s) per second.")
                 time.sleep(delta)
 
             batch_number += 1  # Forgot to put this :(

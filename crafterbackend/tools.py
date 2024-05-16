@@ -331,38 +331,21 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
         craft_result_collection.insert_one(new_document_crafted_by)
 
 
-def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient,
-                          return_craft_data=False):
+def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pymongo.MongoClient):
     """
     Check if the craft exists in the database. Return the craft's output and emoji if return_craft_data is set
     :param craft_data: The raw craft. Just the two ingredients
     :param db: the database client
-    :param return_craft_data: whether to return the raw craft data
     :return: False if the craft doesn't exist, and either True or the craft data depending on return_craft_data
     """
     if db is None:
         return False  # no database, doesn't exist
     craft_db = db[DATABASE].get_collection(encode_element_name(craft_data[0])).find_one(
-        {TYPE_NAME: CRAFT_NAME, WITH_NAME: craft_data[1]})
-    if not return_craft_data or craft_db is None:  # If we don't need to send the craft or we can't, return
-        return craft_db is not None
-
-    # TODO: Remove this code
-    else:  # We are sending the craft data
-        this_item_crafts = craft_db[CRAFT_NAME]
-        info = db[DATABASE].get_collection(encode_element_name(this_item_crafts)).find_one(
-            {TYPE_NAME: INFO_PACKET_NAME})  # Try to get the info
-        if info is not None:  # Just in case (this should never not happen)
-            emoji = info[EMOJI_NAME]
-            is_discovered = info[DISCOVERED_NAME]
-        else:
-            emoji = ""
-            is_discovered = ""
-
-        return {"result": this_item_crafts, "emoji": emoji, "discovered": is_discovered}  # Return the packaged craft
+        {TYPE_NAME: CRAFTED_PACKET_NAME, WITH_NAME: craft_data[1]})
+    return craft_db is not None
 
 
-def ping(ip):
+def ping(ip: str):
     """
     Ping a proxy IP
     :param ip: the proxy to ping

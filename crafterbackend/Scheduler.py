@@ -20,7 +20,6 @@ class Scheduler:
         """
 
         self.proxies = proxies
-
         self.spare_crafts = collections.deque(maxlen=job_size)
         self.craft_func = crafts
         self.initial_craft_size = job_size
@@ -67,16 +66,17 @@ class Scheduler:
             w.begin_working()
 
         # Main loop
-        completed = 0
-        skipped = 0
         while not self.kill:
             # Calculate how many total jobs have been completed by the workers (for progress bar)
             completed = 0
             skipped = 0
+
             for w in self.workers:
                 completed += w.completed
                 skipped += w.skipped
-
+                if not w.is_working():
+                    self.logger.info(f"Caught Worker {w.id} sleeping at the job! Restarting it now :(")
+                    w.begin_working()
             # Calculate completed percentage and ETA
             if skipped != self.initial_craft_size:
 

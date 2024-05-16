@@ -1,12 +1,6 @@
 import logging
-from crafterbackend.exceptions import *
 from crafterbackend.tools import *
 
-# Protocols
-SOCKS5 = "socks5h"
-SOCKS4 = "socks4h"
-HTTPS = "https"
-PROTOCOLS = [SOCKS5, SOCKS4, HTTPS]
 
 # Valid states
 
@@ -29,16 +23,10 @@ class Proxy:
         :param protocol: The protocol (must be in Proxy.PROTOCOLS)
         :param log_level: The log level of the internal logger.
         """
-        if protocol not in PROTOCOLS:  # Ensure protocol validity
-            raise InvalidProxyProtocol(f"The protocol {protocol} isn't valid! Expected one of: {' ,'.join(PROTOCOLS)}")
+
 
         if ip is not None or port is not None:
             self.local = False  # The proxy is not local
-            if not verify_ip(ip):  # Ensure IP validity
-                raise InvalidProxyIP(f"The provided IP address ({ip}) isn't valid!")
-
-            if not verify_port(port):  # Ensure port validity
-                raise InvalidProxyPort(f"The provided port ({port}) isn't valid!")
         else:
             self.local = True  # The proxy is local
 
@@ -70,6 +58,25 @@ class Proxy:
         # Set up the logger
         self.logger = logging.getLogger(f"Proxy({self.parsed})")
         self.logger.setLevel(log_level)
+
+    def submit_many(self, submissions: list):
+        failed = 0
+        conn_fail = False
+        for item in submissions:
+            self.submit(*item)
+            if not item[0]:
+                failed += 1
+            if not item[1]:  # didn't did_connect
+                conn_fail = True
+        if failed:
+            rel = READ_PENALTY
+            if conn_fail:
+                rel = CONNECTION_PENALTY
+            self.disabled_until = failed/len(submissions) * rel
+            self.status = INVALID
+        else:
+            self.status = VALID
+            self.disabled_until = 0
 
     def submit(self, success: bool, time_elapsed: float | int | None = 0, did_connect: bool = True,
                did_respond: bool = True, retry_after=0) -> None:
