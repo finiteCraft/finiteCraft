@@ -229,7 +229,7 @@ def get_url_proxies(url, proxy_type: str = "socks5h") -> list:
     pxs = proxies.text.split("\n")
     raw_proxies = []
     for item in pxs:
-        item = item.replace("socks5://", "")
+        item = item.replace(f"{proxy_type}://", "")
         if ":" in item:
             raw_proxies.append(
                 {'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""),

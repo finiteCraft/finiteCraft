@@ -82,64 +82,16 @@ log.setLevel(global_log_level)
 wait_for_mongodb_connection(db)  # Ensure we are connected to MongoDB before we proceed
 
 
-# def update_librarian(push=True):
-#     """
-#     Update librarian and push to GitHub if necessary
-#     :param push: If true, push to GitHub, otherwise only make local changes
-#     """
-#     global last_depth_count
-#     log.info(f"Running update_librarian (push={push})")
-#     start = time.time()
-#     last_depth_count = {}
-#     raw_database = {}
-#     collection_names = db.get_database("crafts").list_collection_names()
-#
-#     # Load the *entire* database into raw_database :( TODO: FIX
-#     for i, collection in enumerate(collection_names):
-#         raw_database.update({collection: list(db["crafts"][collection].find({}, {"_id": 0}))})
-#
-#     stats = {"unique": len(raw_database),
-#              "mongodb": db["crafts"].command("dbstats")}  # Stats
-#     ujson.dump(stats, open(librarian.LOCAL_DB_PATH + "/stats.json", "w+"))
-#
-#     for i, element_key in enumerate(raw_database):  # Organize data for librarian
-#         data = raw_database[element_key]
-#         info = {}
-#         crafted_by = []
-#         for document in data:
-#             if document["type"] == "crafted_by":
-#                 crafted_by.append([document["craft"], document["predepth"], document["recursive"]])
-#             elif document["type"] == "info":
-#                 del document["type"]
-#                 info = document
-#         if info["depth"] not in last_depth_count.keys():
-#             last_depth_count[info["depth"]] = 1
-#         else:
-#             last_depth_count[info["depth"]] += 1
-#
-#         pre = [i[0] for i in crafted_by if i[1]]  # Predepth recipes
-#         post = [i[0] for i in crafted_by if not i[1]]  # Postdepth recipes
-#         librarian.store_data(element_key, {"pre": pre, "post": post, "depth": info["depth"],
-#                                            "emoji": info["emoji"], "discovered": info["discovered"]},
-#                              allow_missing_attributes=True)
-#         # Store the search data
-#
-#     librarian.cache_clear()
-#     if push:
-#         librarian.update_remote()
-#     log.info(f"Done running update_librarian (push={push}, elapsed={round(time.time() - start, 2)})")
-
-
 def prepare_proxies():
     """
     Get and rank proxies from 4 different vetted sources and rank them according to their speed
     """
     global proxies
     raw_proxies = get_many_url_proxies(
-        ["https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt",
-         "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks5.txt",
-         "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt",
-         "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt"])
+        {"https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt": "socks5h",
+         "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt": "socks4h",
+         "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt": "socks5h",
+         "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt": "socks5h"})
 
     log.info(f"Retrieved {len(raw_proxies)} proxies")
     for i, p in enumerate(raw_proxies):
