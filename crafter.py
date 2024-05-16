@@ -222,10 +222,14 @@ if __name__ == "__main__":  # Mainloop
         if last_depth_count == {}:  # If the database is empty,
             # populate last_depth_count with starter elements and empty depth 1 to prevent a crash
             emojis = ["🔥", "💧", "🌬️", "🌍"]
-            for element, item in enumerate(STARTING_ELEMENTS):
+            for element, item in enumerate(STARTING_ELEMENTS.keys()):
                 col = db.get_database(DATABASE).get_collection(item)
                 col.insert_one({TYPE_NAME: INFO_PACKET_NAME, DEPTH_NAME: 0, EMOJI_NAME: emojis[element], DISCOVERED_NAME: False})
-
+            try:
+                os.makedirs(DEPTHFILE_STORAGE)
+            except FileExistsError:
+                log.info("Depthfolder exists, continuing from there")
+                pass
             for filename in os.listdir(DEPTHFILE_STORAGE):
                 file_path = os.path.join(DEPTHFILE_STORAGE, filename)
                 try:
@@ -234,10 +238,10 @@ if __name__ == "__main__":  # Mainloop
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
                 except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+                    log.warning('Failed to delete %s. Reason: %s' % (file_path, e))
 
             with open(f"{DEPTHFILE_STORAGE}/0", "a") as zerofile:
-                zerofile.write("\n".join(STARTING_ELEMENTS))
+                zerofile.write("\n".join(STARTING_ELEMENTS.keys())+"\n")
             with open(f"{DEPTHFILE_STORAGE}/0.size", "a") as zerosizefile:
                 zerosizefile.write("4")
             last_depth_count = {0: 4, 1: 0}

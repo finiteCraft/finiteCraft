@@ -2,6 +2,7 @@ import datetime
 import ipaddress
 import os.path
 import random
+import shutil
 import sys
 import threading
 import time
@@ -67,7 +68,7 @@ def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.S
         'Sec-GPC': '1',
     }
 
-    # Parameters
+    # Parameters to neal.fun's API
     params = {
         'first': one,
         'second': two,
@@ -112,8 +113,9 @@ def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.S
         {"status": "success", "time_elapsed": response.elapsed.total_seconds()})  # Add success field before returning
 
     # isNew is a bad name.
-    json_resp["discovered"] = json_resp["isNew"]
-    del json_resp["isNew"]
+    json_resp[DISCOVERED_NAME] = json_resp["isNew"]
+    if not DISCOVERED_NAME == "isNew":  # But you never know
+        del json_resp["isNew"]
 
     return json_resp
 
@@ -220,28 +222,32 @@ def get_many_url_proxies(prox_links):
     return raw
 
 
-def parse_crafts_into_tree(raw_crafts) -> dict:
-    """
-    Parse raw crafts into a craft tree.
-    :param raw_crafts: the input crafts
-    :return: the parsed tree
-    """
-    out = {}
-
-    for c in raw_crafts:
-        input_craft = c[0]
-
-        output_result = c[1]
-        key = output_result["result"] + "`" + output_result["emoji"]
-        if key not in out.keys():
-            out.update({key: [input_craft]})
-        else:
-            if input_craft not in out[key] and [input_craft[1], input_craft[0]] not in out[key]:
-                out[key].append(input_craft)
-    return out
-
-
 depth_lock = threading.Lock()
+
+
+def regenerate_depthfiles(db: pymongo.MongoClient):
+    """
+    Regenerate the depthfiles from the DB data. This function will be called upon a detected inconsistency between the
+    """
+    try:
+        shutil.rmtree(DEPTHFILE_STORAGE)
+    except FileNotFoundError:
+        pass
+    os.makedirs(DEPTHFILE_STORAGE)
+    for element_name in db[DATABASE].list_collection_names():
+        try:
+            info = dict(db[DATABASE].get_collection(element_name).find_one({TYPE_NAME: INFO_PACKET_NAME}))
+        except TypeError as e:
+            print(element_name)
+        with open(f"{DEPTHFILE_STORAGE}/{info[DEPTH_NAME]}", "a") as f:
+            f.write(f"{element_name}\n")
+        if not os.path.exists(f"{DEPTHFILE_STORAGE}/{info[DEPTH_NAME]}.size"):
+            update_sizefile = 1
+        else:
+            with open(f'{DEPTHFILE_STORAGE}/{info[DEPTH_NAME]}.size', 'r') as size:
+                update_sizefile = int(size.readline()) + 1
+        with open(f'{DEPTHFILE_STORAGE}/{info[DEPTH_NAME]}.size', 'w') as size:
+            size.write(str(update_sizefile))
 
 
 def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.MongoClient) -> None:
@@ -262,7 +268,7 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     element_one_depth = raw_craft[0][1]
     element_two_depth = raw_craft[0][2]
 
-    if raw_craft[1][RESULT_NAME] in STARTING_ELEMENTS:  # Depth 0 check
+    if raw_craft[1][RESULT_NAME] in STARTING_ELEMENTS.keys():  # Depth 0 check
         depth = 0
     else:
         depth = max(element_one_depth, element_two_depth) + 1  # Otherwise, max the depths and add 1
@@ -294,6 +300,8 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
                         update_sizefile = int(size.readline()) + 1
                 with open(f'{DEPTHFILE_STORAGE}/{final_element_depth}.size', 'w') as size:
                     size.write(str(update_sizefile))
+        elif not os.path.exists(f'{DEPTHFILE_STORAGE}/{info_doc[DEPTH_NAME]}'):
+            regenerate_depthfiles(db)
 
     if info_doc is not None and info_doc[DEPTH_NAME] > new_document_data[DEPTH_NAME]:  # Newer depth? Optimize the depth
         craft_result_collection.delete_one(info_doc)
@@ -302,9 +310,11 @@ def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.Mongo
     # Generate new documents
     new_document_crafted_by = {TYPE_NAME: CBY_PACKET_NAME, CRAFT_NAME: raw_craft[0][0], RECURSIVE_NAME: is_recursive,
                                PREDEPTH_NAME: is_predepth}
-    new_document_crafts_1 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME], WITH_NAME: raw_craft[0][0][0],
+    new_document_crafts_1 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME],
+                             WITH_NAME: raw_craft[0][0][0],
                              RECURSIVE_NAME: is_recursive, PREDEPTH_NAME: is_predepth}
-    new_document_crafts_2 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME], WITH_NAME: raw_craft[0][0][1],
+    new_document_crafts_2 = {TYPE_NAME: CRAFTED_PACKET_NAME, CRAFT_NAME: raw_craft[1][RESULT_NAME],
+                             WITH_NAME: raw_craft[0][0][1],
                              RECURSIVE_NAME: is_recursive, PREDEPTH_NAME: is_predepth}
 
     # Insertion logic
