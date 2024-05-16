@@ -169,6 +169,7 @@ class ImprovedThread(threading.Thread):
         :param kwargs:
         """
         super().__init__(*args, **kwargs)
+        self.killed = False
         self.result = None
 
     def run(self) -> None:
@@ -194,8 +195,33 @@ class ImprovedThread(threading.Thread):
         super().join(*args, **kwargs)
         return self.result
 
+    def start(self):
+        self.__run_backup = self.run
+        self.run = self.__run
+        threading.Thread.start(self)
 
-def get_url_proxies(url) -> list:
+    def __run(self):
+        sys.settrace(self.globaltrace)
+        self.__run_backup()
+        self.run = self.__run_backup
+
+    def globaltrace(self, frame, event, arg):
+        if event == 'call':
+            return self.localtrace
+        else:
+            return None
+
+    def localtrace(self, frame, event, arg):
+        if self.killed:
+            if event == 'line':
+                raise SystemExit()
+        return self.localtrace
+
+    def kill(self):
+        self.killed = True
+
+
+def get_url_proxies(url, proxy_type: str = "socks5h") -> list:
     """
     Get proxies from a URL. Returns a list of dictionaries containing the proxy ip/port information.
     """
@@ -206,7 +232,8 @@ def get_url_proxies(url) -> list:
         item = item.replace("socks5://", "")
         if ":" in item:
             raw_proxies.append(
-                {'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""), 'protocol': 'socks5h'})
+                {'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""),
+                 'protocol': proxy_type})
     return raw_proxies
 
 
@@ -215,8 +242,8 @@ def get_many_url_proxies(prox_links):
     Get many URL proxies. A wrapper for get_url_proxies.
     """
     raw = []
-    for prox_link in prox_links:
-        for p in get_url_proxies(prox_link):
+    for prox_link in prox_links.keys():
+        for p in get_url_proxies(prox_link, prox_links[prox_link]):
             if p not in raw:
                 raw.append(p)
     return raw
@@ -237,7 +264,7 @@ def regenerate_depthfiles(db: pymongo.MongoClient):
     for element_name in db[DATABASE].list_collection_names():
         try:
             info = dict(db[DATABASE].get_collection(element_name).find_one({TYPE_NAME: INFO_PACKET_NAME}))
-        except TypeError as e:
+        except TypeError:
             print(element_name)
         with open(f"{DEPTHFILE_STORAGE}/{info[DEPTH_NAME]}", "a") as f:
             f.write(f"{element_name}\n")
@@ -250,10 +277,10 @@ def regenerate_depthfiles(db: pymongo.MongoClient):
             size.write(str(update_sizefile))
 
 
-def add_raw_craft_to_db(raw_craft: list[list[str, str], dict], db: pymongo.MongoClient) -> None:
+def add_raw_craft_to_db(raw_craft: list[list[str, str], int, int, str], db: pymongo.MongoClient) -> None:
     """
     Add a raw craft to the database.
-    :param raw_craft: The raw craft to add
+    :param raw_craft: The raw craft to add (format: [("Human", "Bomb"), 4, 5, "Tyler"])
     :param db: the MongoClient to add to
     :return: None
     """
@@ -360,6 +387,7 @@ def ping(ip: str):
     except:  # I know this is bad, but we have to catch ANYTHING
         return False, datetime.timedelta(seconds=0)
     return True, resp.elapsed
+
 
 
 def perform_initial_proxy_ranking(proxies):
