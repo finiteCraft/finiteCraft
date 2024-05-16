@@ -24,7 +24,6 @@ class Proxy:
         :param log_level: The log level of the internal logger.
         """
 
-
         if ip is not None or port is not None:
             self.local = False  # The proxy is not local
         else:

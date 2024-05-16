@@ -8,7 +8,7 @@ def test_proxy_source(url, passes=5, protocol="socks5h"):
     print("--------------------------------------")
     print(f"Retrieving proxies from {url}")
     proxies = []
-    raw_proxies = get_url_proxies(url)
+    raw_proxies = get_url_proxies(url, proxy_type=protocol)
 
     print(f"Retrieved {len(raw_proxies)} proxies from {url}")
     if not len(raw_proxies):
@@ -30,7 +30,7 @@ def test_proxy_source(url, passes=5, protocol="socks5h"):
     print(f"Score: {round(alive, 2)}/{len(proxies)} ({round(alive / len(proxies) * 100, 2)}%)"
           f"\nAverage response time for functional proxies: {round(speed / len(proxies), 2)}s")
 
-test_proxy_source("https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt")
-test_proxy_source("https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt", protocol="socks4h")
-test_proxy_source("https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt")
-test_proxy_source("https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt")
+#test_proxy_source("https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt")
+test_proxy_source("https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt", protocol="socks4")
+#test_proxy_source("https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt")
+#test_proxy_source("https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt")

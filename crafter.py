@@ -89,8 +89,10 @@ def prepare_proxies():
     global proxies
     raw_proxies = get_many_url_proxies(
         {"https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt": "socks5h",
-         "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt": "socks4h",
-         "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt": "socks5h",
+         "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt": "socks4",
+         # socks4h doesn't work lmao
+         "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt":
+             "socks5h",
          "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt": "socks5h"})
 
     log.info(f"Retrieved {len(raw_proxies)} proxies")

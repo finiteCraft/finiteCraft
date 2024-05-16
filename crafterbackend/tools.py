@@ -229,7 +229,6 @@ def get_url_proxies(url, proxy_type: str = "socks5h") -> list:
     pxs = proxies.text.split("\n")
     raw_proxies = []
     for item in pxs:
-        item = item.replace(f"{proxy_type}://", "")
         if ":" in item:
             raw_proxies.append(
                 {'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""),
@@ -244,6 +243,7 @@ def get_many_url_proxies(prox_links):
     raw = []
     for prox_link in prox_links.keys():
         for p in get_url_proxies(prox_link, prox_links[prox_link]):
+            p["ip"] = p["ip"].replace(f"{prox_links[prox_link]}://", "")
             if p not in raw:
                 raw.append(p)
     return raw
@@ -387,7 +387,6 @@ def ping(ip: str):
     except:  # I know this is bad, but we have to catch ANYTHING
         return False, datetime.timedelta(seconds=0)
     return True, resp.elapsed
-
 
 
 def perform_initial_proxy_ranking(proxies):
