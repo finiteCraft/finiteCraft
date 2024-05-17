@@ -87,13 +87,7 @@ def prepare_proxies():
     Get and rank proxies from 4 different vetted sources and rank them according to their speed
     """
     global proxies
-    raw_proxies = get_many_url_proxies(
-        {"https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt": "socks5h",
-         "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt": "socks4",
-         # socks4h doesn't work lmao
-         "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt":
-             "socks5h",
-         "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt": "socks5h"})
+    raw_proxies = get_many_url_proxies(PROXIES)
 
     log.info(f"Retrieved {len(raw_proxies)} proxies")
     for i, p in enumerate(raw_proxies):
@@ -193,7 +187,7 @@ if __name__ == "__main__":  # Mainloop
                     log.warning('Failed to delete %s. Reason: %s' % (file_path, e))
 
             with open(f"{DEPTHFILE_STORAGE}/0", "a") as zerofile:
-                zerofile.write("\n".join(STARTING_ELEMENTS.keys())+"\n")
+                zerofile.write("\n".join(STARTING_ELEMENTS.keys()) + "\n")
             with open(f"{DEPTHFILE_STORAGE}/0.size", "a") as zerosizefile:
                 zerosizefile.write("4")
             last_depth_count = {0: 4, 1: 0}

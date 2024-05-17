@@ -31,3 +31,16 @@ RESULT_NAME = "result"  # output
 STARTING_ELEMENTS = {"Fire": "🔥", "Water": "💧", "Wind": "🌬️", "Earth": "🌍"}
 NULL = "Nothing"
 DEPTHFILE_STORAGE = "data/depth"
+
+PROXIES = {
+    "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks4/data.txt":
+        "socks4",
+    "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt":
+        "socks5",
+    "https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt":
+        "socks4",
+    "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks4/global/socks4_checked.txt":
+        "socks4",
+    "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt":
+        "socks5"
+}

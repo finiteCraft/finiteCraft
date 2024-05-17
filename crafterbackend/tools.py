@@ -230,8 +230,9 @@ def get_url_proxies(url, proxy_type: str = "socks5h") -> list:
     raw_proxies = []
     for item in pxs:
         if ":" in item:
+            protocol_split = item.replace(f"{proxy_type}://", "")
             raw_proxies.append(
-                {'ip': item.split(":")[0], 'port': item.split(":")[1].replace("\r", ""),
+                {'ip': protocol_split.split(":")[0], 'port': protocol_split.split(":")[1].replace("\r", ""),
                  'protocol': proxy_type})
     return raw_proxies
 
@@ -243,7 +244,6 @@ def get_many_url_proxies(prox_links):
     raw = []
     for prox_link in prox_links.keys():
         for p in get_url_proxies(prox_link, prox_links[prox_link]):
-            p["ip"] = p["ip"].replace(f"{prox_links[prox_link]}://", "")
             if p not in raw:
                 raw.append(p)
     return raw
@@ -372,7 +372,7 @@ def check_craft_exists_db(craft_data: list[str, str] | tuple[str | str], db: pym
     return craft_db is not None
 
 
-def ping(ip: str):
+def ping(ip: str, print_all=False):
     """
     Ping a proxy IP
     :param ip: the proxy to ping
@@ -384,20 +384,25 @@ def ping(ip: str):
     except InvalidSchema:  # pysocks not installed
         print("ERROR: SOCKS support is not installed!")
         return False, datetime.timedelta(seconds=0)
-    except:  # I know this is bad, but we have to catch ANYTHING
+    except Exception as e:  # I know this is bad, but we have to catch ANYTHING
+        if print_all:
+            print(e)
         return False, datetime.timedelta(seconds=0)
+    if print_all:
+        print("success!", resp.elapsed)
     return True, resp.elapsed
 
 
-def perform_initial_proxy_ranking(proxies):
+def perform_initial_proxy_ranking(proxies, print_all=False):
     """
     Take a list of Proxies and ping each one
     :param proxies: the Proxies to ping
+    :param print_all: whether to print the outcomes or not
     :return: the Proxies (you don't need to use it tho)
     """
     ping_threads = []
     for i, px in enumerate(proxies):
-        rvt = ImprovedThread(target=ping, args=[px.parsed])  # Start the pinging
+        rvt = ImprovedThread(target=ping, args=[px.parsed, print_all])  # Start the pinging
         rvt.name = i
         rvt.start()
         ping_threads.append(rvt)

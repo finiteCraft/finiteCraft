@@ -1,5 +1,6 @@
 from crafterbackend.Proxy import Proxy
 from crafterbackend.tools import *
+from crafterbackend.constants import *
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -19,7 +20,7 @@ def test_proxy_source(url, passes=5, protocol="socks5h"):
         proxies.append(px)
     for i in range(passes):
         print(f"Ranking proxies... (pass={i+1}/{passes})")
-        perform_initial_proxy_ranking(proxies)
+        perform_initial_proxy_ranking(proxies, print_all=False)
     alive = 0
     speed = 0
 
@@ -30,7 +31,6 @@ def test_proxy_source(url, passes=5, protocol="socks5h"):
     print(f"Score: {round(alive, 2)}/{len(proxies)} ({round(alive / len(proxies) * 100, 2)}%)"
           f"\nAverage response time for functional proxies: {round(speed / len(proxies), 2)}s")
 
-#test_proxy_source("https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt")
-test_proxy_source("https://raw.githubusercontent.com/Zaeem20/FREE_PROXIES_LIST/master/socks4.txt", protocol="socks4")
-#test_proxy_source("https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt")
-#test_proxy_source("https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt")
+
+for proxy in PROXIES:
+    test_proxy_source(proxy, PROXIES[proxy])
