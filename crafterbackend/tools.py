@@ -75,7 +75,7 @@ def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.S
     }
 
     # Proxy
-    proxy_argument = {"https": proxy.parsed}
+    proxy_argument = {"https": proxy.parsed} if proxy is not None else None
 
     try:
         # Are we using a session?
@@ -87,6 +87,7 @@ def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.S
         response: requests.Response = getter.get('https://neal.fun/api/infinite-craft/pair', params=params,
                                                  headers=headers,
                                                  proxies=proxy_argument, verify=False, timeout=(timeout, timeout * 2))
+
 
     # Catch errors
     except requests.exceptions.ConnectTimeout:
@@ -107,6 +108,10 @@ def craft(one: str, two: str, proxy=None, timeout: int = 15, session: requests.S
     try:
         json_resp: dict = ujson.loads(string_response)
     except ujson.JSONDecodeError:  # If the response received was invalid return a ReadTimeout penalty
+        # TODO: Remove this debug stuff
+        print("Request headers: " + str(response.request.headers))
+        print("Response headers: " + str(response.headers))
+        print("Content: " + str(response.content))
         return {"status": "error", "type": "read"}  # Failure
 
     json_resp.update(

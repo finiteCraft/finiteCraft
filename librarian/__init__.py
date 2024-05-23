@@ -86,6 +86,32 @@ def update_data(element: str, data: dict) -> None:
             bundle[attr] = data[attr]
 
     LOG.debug(f"Saved element {element} to database successfully.")
+
+
+def append_data_sublist(element: str, attribute: str, sublist: list) -> None:
+    collection = DB.get_database("crafts").get_collection(element)
+    if collection is None:
+        raise ValueError(f"Tried to update non-existent data for element '{element}'")
+
+    general_bundle = collection.find_one({"type": GENERAL_BUNDLE})
+    if attribute not in general_bundle:
+        raise ValueError(f"Tried to append to non-existent attribute '{attribute}' for element '{element}'")
+    if type(general_bundle[attribute]) is not list:
+        raise ValueError(f"Tried to append to non-list attribute '{attribute}' for element '{element}'")
+
+    list_to_append_to: list = general_bundle[attribute]
+    list_to_append_to.extend(sublist)
+
+    # Update the pre-computed bundles
+    for btype, attributes in get_bundle_types().items():
+        if attribute not in attributes:
+            continue
+
+        bundle = collection.find_one({"type": btype})
+        list_to_append_to = bundle[attribute]
+        list_to_append_to.extend(sublist)
+
+    LOG.debug(f"Appended to attribute '{attribute}' of element '{element}'")
     
 
 # region Datatype Interaction
